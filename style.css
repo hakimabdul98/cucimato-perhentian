@@ -176,6 +176,9 @@ p { margin: 0; }
   .gallery { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .included { gap: 28px 20px; padding: 48px 0; }
   .steps { grid-template-columns: 1fr; gap: 24px; }
+  .contact__list li { flex-direction: column; gap: 2px; }
+  .contact__list span { font-size: 13px; }
+  .contact__list a { text-align: left; }
   .footer__inner { flex-direction: column; align-items: flex-start; padding-bottom: 88px; }
 }
 @media (prefers-reduced-motion: reduce) {
