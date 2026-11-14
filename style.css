@@ -66,8 +66,6 @@ p { margin: 0; }
 .hero__grid { display: grid; grid-template-columns: 1fr auto; gap: 64px; align-items: center; }
 .hero h1 { font-size: clamp(44px, 6.4vw, 84px); letter-spacing: -.035em; }
 .hero__lead { max-width: 40ch; font-size: 18px; color: var(--muted); margin: 18px 0 30px; }
-.hero__spots { list-style: none; padding: 0; margin: 44px 0 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 14px; color: var(--muted); }
-.hero__spots li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #e0312b; margin-right: 8px; vertical-align: middle; }
 .hero__map { margin: 0; }
 .hero__map img { height: min(calc(100svh - 160px), 760px); width: auto; aspect-ratio: 1414 / 2000; object-fit: cover; border-radius: 6px; }
 
