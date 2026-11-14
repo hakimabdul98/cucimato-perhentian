@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cucimato | Perhentian Island Packages</title>
+  <meta name="description" content="Perhentian Island holiday packages by Cucimato: accommodation, snorkeling, return boat transfer and lunch. Book directly on WhatsApp.">
+  <meta property="og:title" content="Cucimato | Perhentian Island Packages">
+  <meta property="og:description" content="Stay, snorkel and boat transfers in one package. From RM195.">
+  <meta property="og:image" content="images/photos/hero-map.webp">
+  <script>
+    // Intro plays once per visit (per browser tab session); skipped for reduced motion.
+    try {
+      if (sessionStorage.getItem("intro-seen") || matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.classList.add("no-intro");
+      } else {
+        sessionStorage.setItem("intro-seen", "1");
+      }
+    } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
+</head>
+<body>
+
+<div class="intro" id="intro" aria-hidden="true">
+  <img class="intro__bg" src="images/photos/hero-map.webp" alt="">
+  <div class="intro__shade"></div>
+  <div class="intro__content">
+    <img class="intro__logo" src="images/brand/cucimato-logo-white.webp" alt="" width="800" height="587">
+    <p class="intro__text">Perhentian Island</p>
+  </div>
+  <button class="intro__skip" id="introSkip" type="button">Skip</button>
+</div>
+
+<header class="nav is-solid" id="top">
+  <div class="wrap nav__inner">
+    <a href="#top" class="brand" aria-label="Cucimato Perhentian Island">
+      <img class="brand__logo brand__logo--light" src="images/brand/cucimato-logo-white.webp" alt="Cucimato Perhentian Island" width="800" height="587">
+      <img class="brand__logo brand__logo--dark" src="images/brand/cucimato-logo-dark.webp" alt="" width="800" height="587" aria-hidden="true">
+    </a>
+    <nav class="nav__links" id="navLinks">
+      <a href="#packages">Packages</a>
+      <a href="#snorkeling">Snorkeling</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <button class="burger" id="burger" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero__grid">
+      <div class="hero__text">
+        <p class="label">Perhentian Island, Terengganu</p>
+        <h1>Stay, snorkel, relax.</h1>
+        <p class="hero__lead">Accommodation, snorkeling, boat transfers and lunch in one package. From RM195.</p>
+        <div class="row">
+          <a href="#packages" class="btn">View packages</a>
+          <a class="btn btn--outline" data-wa="general" target="_blank" rel="noopener">WhatsApp us</a>
+        </div>
+        <ul class="hero__spots" aria-label="Places on the map">
+          <li>Kampung Nelayan</li><li>Long Beach</li><li>Windmill</li><li>Flora</li><li>Arwana</li>
+        </ul>
+      </div>
+      <figure class="hero__map">
+        <img src="images/photos/hero-map.webp" alt="Aerial map of Perhentian Island marking Kampung Nelayan, Long Beach, the windmill, Flora and Arwana" width="1414" height="2000" fetchpriority="high">
+      </figure>
+    </div>
+  </section>
+
+  <section class="wrap included" aria-label="What's included">
+    <div><span>01</span><h3>Local guide</h3><p>Guides who know every spot.</p></div>
+    <div><span>02</span><h3>Accommodation</h3><p>Resort, chalet or hotel.</p></div>
+    <div><span>03</span><h3>Snorkeling</h3><p>Equipment provided.</p></div>
+    <div><span>04</span><h3>Boat transfer</h3><p>Return trip from the jetty.</p></div>
+  </section>
+
+  <section class="section" id="packages">
+    <div class="wrap">
+      <div class="head">
+        <h2>Packages</h2>
+        <p>Every package includes a snorkeling trip, equipment, return boat transfer, lunch and a free gift.</p>
+      </div>
+      <div class="filters" role="tablist" id="filters"></div>
+      <div class="grid" id="pkgGrid"></div>
+    </div>
+  </section>
+
+  <section class="section section--soft" id="snorkeling">
+    <div class="wrap split">
+      <img src="images/photos/boat-snorkeling-2.webp" alt="Guests ready for snorkeling" loading="lazy">
+      <div>
+        <p class="label">Ground package</p>
+        <h2>Boat &amp; snorkeling only</h2>
+        <p class="muted">Already booked your own hotel? Add our boat and snorkeling trip. Minimum stay 2D1N at any resort or hotel on Perhentian Island. Includes return boat transfer and a free gift.</p>
+        <dl class="plist">
+          <div><dt>Snorkeling Perhentian</dt><dd>RM130</dd></div>
+          <div><dt>Snorkeling Rawa Island</dt><dd>RM150</dd></div>
+        </dl>
+        <div class="row">
+          <a class="btn" data-wa="Boat Service &amp; Snorkeling" target="_blank" rel="noopener">Book on WhatsApp</a>
+          <button class="btn btn--outline" data-poster="boat-snorkeling">View poster</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="gallery">
+    <div class="wrap">
+      <div class="head"><h2>Gallery</h2></div>
+      <div class="gallery" id="galleryGrid"></div>
+    </div>
+  </section>
+
+  <section class="section section--soft" id="book">
+    <div class="wrap">
+      <div class="head"><h2>How to book</h2></div>
+      <ol class="steps">
+        <li><h3>Choose a package</h3><p>Pick your stay and 2D1N or 3D2N.</p></li>
+        <li><h3>Message us</h3><p>Send your dates and group size on WhatsApp.</p></li>
+        <li><h3>Confirm</h3><p>We send a quote. A deposit secures your slot.</p></li>
+        <li><h3>Meet at the jetty</h3><p>We handle everything on the island.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="section" id="contact">
+    <div class="wrap"><div class="contact">
+      <h2>Ready for Perhentian?</h2>
+      <p class="muted">Ask about dates, group rates or family trips.</p>
+      <ul class="contact__list">
+        <li><span>WhatsApp</span><a data-wa="general" target="_blank" rel="noopener">+60 19 209 4669</a></li>
+        <li><span>Phone</span><a href="tel:+60192094669">+60 19 209 4669</a></li>
+        <li><span>Instagram</span><a href="https://www.instagram.com/cucimatopulauperhentian/" target="_blank" rel="noopener">@cucimatopulauperhentian</a></li>
+      </ul>
+    </div></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer__inner">
+    <a href="#top" class="footer__logo" aria-label="Back to top">
+      <img src="images/brand/cucimato-logo-dark.webp" alt="Cucimato Perhentian Island" width="800" height="587" loading="lazy">
+    </a>
+    <nav class="footer__nav" aria-label="Footer">
+      <a href="#packages">Packages</a>
+      <a href="#snorkeling">Snorkeling</a>
+      <a href="#gallery">Gallery</a>
+      <a href="#book">How to book</a>
+      <a href="https://www.instagram.com/cucimatopulauperhentian/" target="_blank" rel="noopener">Instagram</a>
+    </nav>
+    <small>© <span id="year"></span> Cucimato Perhentian Island</small>
+  </div>
+</footer>
+
+<a class="wa-float" data-wa="general" target="_blank" rel="noopener" aria-label="Chat on WhatsApp">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.3-.2-.5-.3Z"/></svg>
+</a>
+
+<dialog class="lightbox" id="lightbox">
+  <button class="lightbox__close" id="lbClose" aria-label="Close">×</button>
+  <img id="lbImg" alt="">
+</dialog>
+
+<script src="script.js"></script>
+</body>
+</html>
