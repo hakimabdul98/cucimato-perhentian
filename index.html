@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=5">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
 </head>
 <body>
@@ -44,7 +44,7 @@
     </a>
     <nav class="nav__links" id="navLinks">
       <a href="#packages">Packages</a>
-      <a href="#snorkeling">Snorkeling</a>
+      <a href="#snorkeling">Boat tickets</a>
       <a href="#gallery">Gallery</a>
       <a href="#contact">Contact</a>
     </nav>
@@ -88,19 +88,64 @@
   </section>
 
   <section class="section section--soft" id="snorkeling">
-    <div class="wrap split">
-      <img src="images/photos/boat-snorkeling-2.webp" alt="Guests ready for snorkeling" loading="lazy">
-      <div>
-        <p class="label">Ground package</p>
-        <h2>Boat &amp; snorkeling only</h2>
-        <p class="muted">Already booked your own hotel? Add our boat and snorkeling trip. Minimum stay 2D1N at any resort or hotel on Perhentian Island. Includes return boat transfer and a free gift.</p>
-        <dl class="plist">
-          <div><dt>Snorkeling Perhentian</dt><dd>RM130</dd></div>
-          <div><dt>Snorkeling Rawa Island</dt><dd>RM150</dd></div>
-        </dl>
-        <div class="row">
-          <a class="btn" data-wa="Boat Service &amp; Snorkeling" target="_blank" rel="noopener">Book on WhatsApp</a>
-          <button class="btn btn--outline" data-poster="boat-snorkeling">View poster</button>
+    <div class="wrap">
+      <div class="head">
+        <div>
+          <p class="label">Boat tickets</p>
+          <h2>Book your boat</h2>
+        </div>
+        <p>Return boat to Perhentian Island, with an optional snorkeling trip. Pick your dates, add your group and see the total.</p>
+      </div>
+
+      <div class="booker" id="booker">
+        <div class="booker__cal">
+          <div class="cal__head">
+            <button type="button" class="cal__nav" id="calPrev" aria-label="Previous month">‹</button>
+            <p class="cal__month" id="calMonth" aria-live="polite"></p>
+            <button type="button" class="cal__nav" id="calNext" aria-label="Next month">›</button>
+          </div>
+          <div class="cal__grid cal__dow" aria-hidden="true">
+            <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
+          </div>
+          <div class="cal__grid" id="calDays" role="grid" aria-label="Choose dates"></div>
+          <p class="cal__hint" id="calHint" aria-live="polite"></p>
+        </div>
+
+        <div class="booker__form">
+          <fieldset class="field">
+            <legend>Trip</legend>
+            <div class="trips" id="tripList"></div>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Guests</legend>
+            <div class="guest">
+              <div><strong>Adults</strong><small>Age 12+</small></div>
+              <div class="stepper">
+                <button type="button" data-step="adults" data-d="-1" aria-label="Remove adult">−</button>
+                <output id="adultsOut">2</output>
+                <button type="button" data-step="adults" data-d="1" aria-label="Add adult">+</button>
+              </div>
+            </div>
+            <div class="guest">
+              <div><strong>Children</strong><small>Age 3–11</small></div>
+              <div class="stepper">
+                <button type="button" data-step="children" data-d="-1" aria-label="Remove child">−</button>
+                <output id="childrenOut">0</output>
+                <button type="button" data-step="children" data-d="1" aria-label="Add child">+</button>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="field">
+            <legend>Return boat</legend>
+            <div class="slots" id="slotList" role="radiogroup" aria-label="Return boat time"></div>
+          </fieldset>
+
+          <dl class="summary" id="summary"></dl>
+
+          <a class="btn btn--block" id="bookBtn" target="_blank" rel="noopener" aria-disabled="true">Choose your departure date</a>
+          <p class="booker__note">Boats to the island leave between 8am and 4pm, depending on sea conditions. We'll confirm your exact time on WhatsApp. Return boats leave at 8am, 12pm and 4pm.</p>
         </div>
       </div>
     </div>
@@ -146,7 +191,7 @@
     </a>
     <nav class="footer__nav" aria-label="Footer">
       <a href="#packages">Packages</a>
-      <a href="#snorkeling">Snorkeling</a>
+      <a href="#snorkeling">Boat tickets</a>
       <a href="#gallery">Gallery</a>
       <a href="#book">How to book</a>
       <a href="https://www.instagram.com/cucimatopulauperhentian/" target="_blank" rel="noopener">Instagram</a>
@@ -165,6 +210,6 @@
   <img id="lbImg" alt="">
 </dialog>
 
-<script src="script.js?v=2"></script>
+<script src="script.js?v=5"></script>
 </body>
 </html>

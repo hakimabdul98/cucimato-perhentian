@@ -77,6 +77,153 @@ function renderGallery() {
   ).join("");
 }
 
+/* =========================================================
+   Boat ticket booking (return trip)
+   Edit prices, times and ages here. child: null = "price on WhatsApp".
+   ========================================================= */
+const BOAT = {
+  trips: [
+    { id: "boat", name: "Boat transfer (return)", adult: 80, child: 40 },
+    { id: "perhentian", name: "Boat + Snorkeling Perhentian", adult: 130, child: null },
+    { id: "rawa", name: "Boat + Snorkeling Rawa Island", adult: 150, child: null },
+  ],
+  departWindow: "8am–4pm",                  // to the island: flexible, confirmed on WhatsApp
+  returnTimes: ["8:00 AM", "12:00 PM", "4:00 PM"], // back to the jetty: fixed
+  adultAge: "Age 12+",
+  childAge: "Age 3–11",
+  minDaysAhead: 1,      // earliest departure = today + this many days
+  maxMonthsAhead: 6,    // how far ahead the calendar goes
+  closedMonths: [],     // e.g. [11, 12, 1, 2] to block monsoon months (1 = Jan)
+  maxGuests: 30,
+};
+
+const booking = { trip: BOAT.trips[0].id, depart: null, ret: null, returnTime: null, adults: 2, children: 0 };
+const today = new Date(); today.setHours(0, 0, 0, 0);
+const firstBookable = new Date(today); firstBookable.setDate(today.getDate() + BOAT.minDaysAhead);
+const lastBookable = new Date(today.getFullYear(), today.getMonth() + BOAT.maxMonthsAhead + 1, 0);
+let calView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
+
+const rm = (n) => "RM" + n.toLocaleString("en-MY");
+const fmtDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+const sameDay = (a, b) => a && b && a.getTime() === b.getTime();
+const isBookable = (d) => d >= firstBookable && d <= lastBookable && !BOAT.closedMonths.includes(d.getMonth() + 1);
+
+function renderCalendar() {
+  const y = calView.getFullYear(), m = calView.getMonth();
+  document.getElementById("calMonth").textContent = calView.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  document.getElementById("calPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
+  document.getElementById("calNext").disabled = y === lastBookable.getFullYear() && m === lastBookable.getMonth();
+
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
+  const days = new Date(y, m + 1, 0).getDate();
+  let html = "<span></span>".repeat(lead);
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(y, m, d);
+    const isStart = sameDay(date, booking.depart), isEnd = sameDay(date, booking.ret);
+    const inRange = booking.depart && booking.ret && date > booking.depart && date < booking.ret;
+    // while picking the return date, days before departure are not selectable
+    const beforeDepart = booking.depart && !booking.ret && date < booking.depart;
+    const cls = ["cal__day", sameDay(date, today) && "is-today", isStart && "is-start", isEnd && "is-end", inRange && "in-range"].filter(Boolean).join(" ");
+    const tag = isStart ? " (departure)" : isEnd ? " (return)" : "";
+    html += `<button type="button" class="${cls}" data-day="${d}" aria-label="${fmtDate(date)}${tag}"
+      aria-pressed="${isStart || isEnd}" ${isBookable(date) && !beforeDepart ? "" : "disabled"}>${d}</button>`;
+  }
+  document.getElementById("calDays").innerHTML = html;
+  document.getElementById("calHint").textContent =
+    !booking.depart ? "Tap your departure date." :
+    !booking.ret ? "Now tap your return date." :
+    "Tap a date to start again.";
+}
+
+function renderTrips() {
+  document.getElementById("tripList").innerHTML = BOAT.trips.map(t =>
+    `<button type="button" class="trip" role="radio" data-trip="${t.id}" aria-checked="${t.id === booking.trip}">
+      ${t.name}<span>${rm(t.adult)} / adult</span></button>`
+  ).join("");
+}
+
+function renderSlots() {
+  document.getElementById("slotList").innerHTML = BOAT.returnTimes.map(t =>
+    `<button type="button" class="slot" role="radio" data-slot="${t}" aria-checked="${t === booking.returnTime}">${t}</button>`
+  ).join("");
+}
+
+function renderBooking() {
+  const trip = BOAT.trips.find(t => t.id === booking.trip);
+  const { adults, children, depart, ret, returnTime } = booking;
+  document.getElementById("adultsOut").textContent = adults;
+  document.getElementById("childrenOut").textContent = children;
+  document.querySelector('[data-step="adults"][data-d="-1"]').disabled = adults <= 1;
+  document.querySelector('[data-step="children"][data-d="-1"]').disabled = children <= 0;
+  document.querySelectorAll('[data-d="1"]').forEach(b => { b.disabled = adults + children >= BOAT.maxGuests; });
+
+  const childKnown = trip.child !== null;
+  const total = adults * trip.adult + (childKnown ? children * trip.child : 0);
+  const rows = [
+    ["Trip", trip.name],
+    ["Departure", depart ? `${fmtDate(depart)}, ${BOAT.departWindow}` : "Not selected"],
+    ["Return", ret ? `${fmtDate(ret)}${returnTime ? ", " + returnTime : ""}` : "Not selected"],
+    [`${adults} adult${adults > 1 ? "s" : ""} × ${rm(trip.adult)}`, rm(adults * trip.adult)],
+  ];
+  if (children) rows.push([`${children} child${children > 1 ? "ren" : ""}${childKnown ? " × " + rm(trip.child) : ""}`,
+    childKnown ? rm(children * trip.child) : "Price on WhatsApp"]);
+  document.getElementById("summary").innerHTML =
+    rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("") +
+    `<div class="total"><dt>Total${children && !childKnown ? " (adults)" : ""}</dt><dd>${rm(total)}</dd></div>`;
+
+  const btn = document.getElementById("bookBtn");
+  const missing = !depart ? "Choose your departure date" : !ret ? "Choose your return date" : !returnTime ? "Choose a return boat time" : "";
+  if (missing) {
+    btn.textContent = missing;
+    btn.setAttribute("aria-disabled", "true");
+    btn.removeAttribute("href");
+    return;
+  }
+  const msg = [
+    "Hi Cucimato! I'd like to book a boat ticket.",
+    `Trip: ${trip.name}`,
+    `Departure: ${fmtDate(depart)} (${BOAT.departWindow}, please confirm the time)`,
+    `Return: ${fmtDate(ret)}, ${returnTime}`,
+    `Adults: ${adults}`,
+    `Children: ${children}`,
+    `Total: ${rm(total)}${children && !childKnown ? " + children" : ""}`,
+  ].join("\n");
+  btn.textContent = `Book for ${rm(total)}${children && !childKnown ? "+" : ""}`;
+  btn.removeAttribute("aria-disabled");
+  btn.href = waLink(msg);
+}
+
+document.getElementById("calDays").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-day]");
+  if (!b || b.disabled) return;
+  const date = new Date(calView.getFullYear(), calView.getMonth(), +b.dataset.day);
+  if (!booking.depart || booking.ret) { booking.depart = date; booking.ret = null; }
+  else booking.ret = date; // same day allowed (day trip)
+  renderCalendar(); renderBooking();
+});
+document.getElementById("calPrev").addEventListener("click", () => { calView.setMonth(calView.getMonth() - 1); renderCalendar(); });
+document.getElementById("calNext").addEventListener("click", () => { calView.setMonth(calView.getMonth() + 1); renderCalendar(); });
+document.getElementById("tripList").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-trip]");
+  if (!b) return;
+  booking.trip = b.dataset.trip;
+  renderTrips(); renderBooking();
+});
+document.getElementById("slotList").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-slot]");
+  if (!b) return;
+  booking.returnTime = b.dataset.slot;
+  renderSlots(); renderBooking();
+});
+document.getElementById("booker").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-step]");
+  if (!b || b.disabled) return;
+  booking[b.dataset.step] += +b.dataset.d;
+  renderBooking();
+});
+document.querySelectorAll(".guest small")[0].textContent = BOAT.adultAge;
+document.querySelectorAll(".guest small")[1].textContent = BOAT.childAge;
+
 /* ---------- events ---------- */
 document.getElementById("filters").addEventListener("click", (e) => {
   const b = e.target.closest("[data-filter]");
@@ -128,3 +275,7 @@ document.getElementById("year").textContent = new Date().getFullYear();
 renderGallery();
 renderFilters();
 renderPackages();
+renderCalendar();
+renderTrips();
+renderSlots();
+renderBooking();
