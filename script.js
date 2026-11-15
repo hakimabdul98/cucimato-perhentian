@@ -43,6 +43,7 @@ const FERRY = {
   adult: 80,
   child: 40,                                // child = 1–9 years old
   departWindow: "8am–5pm",                  // to the island: confirmed on WhatsApp
+  departTimes: ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"], // to the island
   returnTimes: ["8:00 AM", "12:00 PM", "4:00 PM"],
   minDaysAhead: 1,                          // earliest depart = tomorrow
   maxMonthsAhead: 6,
@@ -58,7 +59,7 @@ const shortDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: 
 const sameDay = (a, b) => a && b && a.getTime() === b.getTime();
 const isBookable = (d) => d >= firstBookable && d <= lastBookable && !FERRY.closedMonths.includes(d.getMonth() + 1);
 
-const ferry = { depart: null, ret: null, returnTime: null, adults: 1, children: 0 };
+const ferry = { depart: null, ret: null, departTime: null, returnTime: null, adults: 1, children: 0 };
 let fView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
 
 function fMonthHTML(y, m) {
@@ -90,15 +91,21 @@ function renderFerryCal() {
     : !ferry.ret ? "Now select your return date" : `${shortDate(ferry.depart)} → ${shortDate(ferry.ret)}`;
 }
 
+function renderDepSlots() {
+  $("fDepSlots").innerHTML = FERRY.departTimes.map(t =>
+    `<button type="button" class="slot" role="radio" data-dep="${t}" aria-checked="${t === ferry.departTime}">${t}</button>`).join("");
+}
+
 function renderRetSlots() {
   $("fRetSlots").innerHTML = FERRY.returnTimes.map(t =>
     `<button type="button" class="slot" role="radio" data-ret="${t}" aria-checked="${t === ferry.returnTime}">${t}</button>`).join("");
 }
 
 function renderFerryPanel() {
-  const { depart, ret, returnTime, adults, children } = ferry;
+  const { depart, ret, departTime, returnTime, adults, children } = ferry;
   $("fDatesVal").textContent = depart ? `${shortDate(depart)} – ${ret ? shortDate(ret) : "Return?"}` : "Select dates";
-  $("fRetVal").textContent = returnTime || "Select time";
+  $("fDepVal").textContent = departTime || "Time";
+  $("fRetVal").textContent = returnTime || "Time";
   $("fPaxVal").textContent = `${adults} Adult${adults > 1 ? "s" : ""}${children ? `, ${children} Child${children > 1 ? "ren" : ""}` : ""}`;
   $("fAdults").textContent = adults;
   $("fChildren").textContent = children;
@@ -108,7 +115,7 @@ function renderFerryPanel() {
 
   const go = $("fGo");
   const total = adults * FERRY.adult + children * FERRY.child;
-  const missing = !depart ? "Select dates" : !ret ? "Select return date" : !returnTime ? "Select return time" : "";
+  const missing = !depart ? "Select dates" : !ret ? "Select return date" : !departTime ? "Select boat time" : !returnTime ? "Select return time" : "";
   if (missing) {
     go.textContent = missing;
     go.setAttribute("aria-disabled", "true");
@@ -120,7 +127,9 @@ function renderFerryPanel() {
   go.href = "#book"; // opens the booking sheet (see "Booking sheet" below)
 }
 
-const POPS = { dates: ["fDatesPop", "fDatesBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
+const POPS = { dates: ["fDatesPop", "fDatesBtn"], dep: ["fDepPop", "fDepBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
+// Next field still empty after dates: boat to the island, then return boat
+const nextFerryStep = () => !ferry.depart || !ferry.ret ? "dates" : !ferry.departTime ? "dep" : !ferry.returnTime ? "ret" : null;
 function fToggle(which, open) {
   const [popId, btnId] = POPS[which];
   const willOpen = open ?? $(popId).hidden;
@@ -132,6 +141,7 @@ function fToggle(which, open) {
 const closeAllPops = () => Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
 
 $("fDatesBtn").addEventListener("click", () => fToggle("dates"));
+$("fDepBtn").addEventListener("click", () => fToggle("dep"));
 $("fRetBtn").addEventListener("click", () => fToggle("ret"));
 $("fPaxBtn").addEventListener("click", () => fToggle("pax"));
 document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => fToggle(b.dataset.close, false)));
@@ -145,7 +155,14 @@ $("fCalMonths").addEventListener("click", (e) => {
   if (!ferry.depart || ferry.ret) { ferry.depart = date; ferry.ret = null; }
   else ferry.ret = date; // same day allowed (day trip)
   renderFerryCal(); renderFerryPanel();
-  if (ferry.ret) setTimeout(() => fToggle(ferry.returnTime ? "dates" : "ret", !ferry.returnTime), 250); // next: return time
+  if (ferry.ret) setTimeout(() => { const n = nextFerryStep(); fToggle(n || "dates", !!n); }, 250); // next: boat times
+});
+$("fDepSlots").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-dep]");
+  if (!b) return;
+  ferry.departTime = b.dataset.dep;
+  renderDepSlots(); renderFerryPanel();
+  setTimeout(() => { const n = nextFerryStep(); n === "ret" ? fToggle("ret", true) : fToggle("dep", false); }, 200);
 });
 $("fRetSlots").addEventListener("click", (e) => {
   const b = e.target.closest("[data-ret]");
@@ -165,11 +182,12 @@ $("fGo").addEventListener("click", (e) => {
   e.preventDefault();
   if ($("fGo").getAttribute("aria-disabled") !== "true") { openBooking("ferry"); return; }
   e.stopPropagation();
-  fToggle(!ferry.depart || !ferry.ret ? "dates" : "ret", true);
+  fToggle(nextFerryStep() || "dates", true);
 });
 document.addEventListener("click", (e) => { if (!e.target.closest(".fpop-wrap") && !e.target.closest("#fGo")) closeAllPops(); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAllPops(); });
 
+renderDepSlots();
 renderRetSlots();
 renderFerryPanel();
 
@@ -608,7 +626,7 @@ const timeSelect = (name, times) => `<select name="${name}" required>
   ${times.map(t => `<option${t === bk[name] ? " selected" : ""}>${t}</option>`).join("")}</select>`;
 
 // Boat to the island: same times as the Ferry Schedule tab
-const DEPART_TIMES = FERRY_SCHEDULE.depart.map(s => `${s.t} ${s.ap}`);
+const DEPART_TIMES = FERRY.departTimes;
 
 const bkSheet = $("bookSheet");
 const bk = { mode: "ferry", id: "", start: "", end: "", dep: "", ret: "", cc: "+60", adults: 1, children: 0, addons: new Set(), name: "", phone: "", email: "", stay: "", sending: false, error: "", done: false };
@@ -624,7 +642,7 @@ function bkItem() {
 
 function openBooking(mode, id = "") {
   Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set() });
-  if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(ferry.ret), ret: ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
+  if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(ferry.ret), dep: ferry.departTime || "", ret: ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
   if ($("pkgInfo").open) $("pkgInfo").close();
   renderBooking();
   bkSheet.showModal();
@@ -658,7 +676,7 @@ function renderBooking() {
         <h3 class="bk__title" id="bkTitle">${esc(it.name)}</h3>
         <p class="bk__sub">${it.sub}</p>
       </div>
-      <div class="bk__grid">
+      ${bk.mode === "ferry" ? ferryTripSummary() : `<div class="bk__grid">
         <label class="bk__f">${hotel ? "Check-in" : "Depart"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
         <label class="bk__f">${hotel ? "Check-out" : "Return"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
       </div>
@@ -668,7 +686,7 @@ function renderBooking() {
           <label class="bk__f">Return boat${timeSelect("ret", FERRY.returnTimes)}</label>
         </div>
         <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
-      <div class="bk__grid">${pax("adults", "Adults", "", 1)}${pax("children", "Children", "1–9 years", 0)}</div>
+      <div class="bk__grid">${pax("adults", "Adults", "", 1)}${pax("children", "Children", "1–9 years", 0)}</div>`}
       ${hotel ? `<div><p class="bk__lbl">Add-on activities (optional)</p><div class="bk__chips">${ADDONS.map(a => `<button type="button" class="bk__chip" data-bkaddon="${esc(a.value)}" aria-pressed="${bk.addons.has(a.value)}">${esc(a.label || a.value)}${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</button>`).join("")}</div></div>`
         : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
       <div><p class="bk__lbl">Your details</p>
@@ -689,6 +707,17 @@ function renderBooking() {
       <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? "Sending…" : hotel ? "Check availability" : "Confirm booking"}</button>
       <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
+}
+
+// Book a Ferry: trip details were already chosen in the ferry panel, so only show them here
+function ferryTripSummary() {
+  const people = `${bk.adults} adult${bk.adults > 1 ? "s" : ""}${bk.children ? `, ${bk.children} child${bk.children > 1 ? "ren" : ""}` : ""}`;
+  return `<div class="bk__trip">
+    <div><small>Depart</small><strong>${shortDate(fromIso(bk.start))} · ${bk.dep}</strong></div>
+    <div><small>Return</small><strong>${shortDate(fromIso(bk.end))} · ${bk.ret}</strong></div>
+    <div><small>Passengers</small><strong>${people}</strong></div>
+    <button type="button" class="bk__change" data-bkclose>Change</button>
+  </div>`;
 }
 
 function renderBookingDone(it) {

@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;800&family=Righteous&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=27">
+  <link rel="stylesheet" href="style.css?v=28">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
 </head>
 <body>
@@ -119,13 +119,24 @@
             </div>
           </div>
 
-          <div class="fpop-wrap">
-            <button type="button" class="ffield" id="fRetBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fRetPop">
-              <small>Return boat</small><strong id="fRetVal">Select time</strong>
-            </button>
-            <div class="fpop fpop--ret" id="fRetPop" role="dialog" aria-label="Return boat time" hidden>
-              <p class="fpop__label">Perhentian Island → Kuala Besut Jetty</p>
-              <div class="slots" id="fRetSlots" role="radiogroup" aria-label="Return boat time"></div>
+          <div class="fboats">
+            <div class="fpop-wrap">
+              <button type="button" class="ffield" id="fDepBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fDepPop">
+                <small>To island</small><strong id="fDepVal">Time</strong>
+              </button>
+              <div class="fpop fpop--ret" id="fDepPop" role="dialog" aria-label="Boat to the island" hidden>
+                <p class="fpop__label">Kuala Besut Jetty → Perhentian Island</p>
+                <div class="slots" id="fDepSlots" role="radiogroup" aria-label="Boat to the island"></div>
+              </div>
+            </div>
+            <div class="fpop-wrap">
+              <button type="button" class="ffield" id="fRetBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fRetPop">
+                <small>Return boat</small><strong id="fRetVal">Time</strong>
+              </button>
+              <div class="fpop fpop--ret fpop--right" id="fRetPop" role="dialog" aria-label="Return boat time" hidden>
+                <p class="fpop__label">Perhentian Island → Kuala Besut Jetty</p>
+                <div class="slots" id="fRetSlots" role="radiogroup" aria-label="Return boat time"></div>
+              </div>
             </div>
           </div>
 
@@ -156,7 +167,7 @@
 
           <a class="btn fpanel__go" id="fGo" role="button" target="_blank" rel="noopener" aria-disabled="true">Select dates</a>
         </div>
-        <p class="fpanel__note">Return trip · Adult RM80 · Child RM40 · Departures 8am–5pm, time confirmed on WhatsApp</p>
+        <p class="fpanel__note">Return trip · Adult RM80 · Child RM40 · Departures 8am–5pm, changes confirmed on WhatsApp</p>
       </div>
 
       <!-- Hotel + Packages panel (shown when the "Hotel + Packages" tab is active) -->
@@ -294,6 +305,6 @@
   <div id="bkBody"></div>
 </dialog>
 
-<script src="script.js?v=24"></script>
+<script src="script.js?v=25"></script>
 </body>
 </html>

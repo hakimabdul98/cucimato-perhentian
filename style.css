@@ -604,3 +604,28 @@ a.fpanel__go { display: inline-flex; align-items: center; justify-content: cente
   .bk__step { gap: 4px; }
   .bk__step button { width: 30px; height: 30px; }
 }
+
+/* Ferry panel: boat to the island + return boat side by side */
+.fboats { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.fboats .fpop-wrap { position: static; }
+.fboats .ffield { padding: 10px 14px; }
+.fpop--right { left: auto; right: 0; }
+/* Booking sheet: Book a Ferry trip summary */
+.bk__trip { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; background: var(--soft); border-radius: 12px; padding: 12px 14px; }
+.bk__trip small { display: block; font-size: 12px; color: var(--muted); }
+.bk__trip strong { font-family: var(--font-nav); font-weight: 600; font-size: 14px; }
+.bk__change { position: absolute; top: 8px; right: 10px; border: 0; background: none; font: 500 13px var(--font); color: var(--accent); text-decoration: underline; cursor: pointer; padding: 4px; }
+@media (max-width: 680px) {
+  .bk__trip { grid-template-columns: 1fr; gap: 6px; padding-right: 70px; }
+  .fpop--right { left: 0; right: 0; }
+}
+/* Wider column for the two boat times (to island + return) */
+@media (min-width: 1001px) {
+  .fpanel__row { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, .8fr) auto; }
+}
+.fboats .ffield { padding: 10px 12px; }
+@media (min-width: 1001px) {
+  .froute { gap: 4px; }
+  .froute .ffield { padding: 10px 10px 10px 14px; }
+  .froute .ffield strong { font-size: 14px; }
+}
