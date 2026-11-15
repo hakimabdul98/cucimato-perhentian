@@ -562,8 +562,6 @@ a.fpanel__go { display: inline-flex; align-items: center; justify-content: cente
 .bk__phone { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 8px; }
 .bk__f select { font: 400 16px var(--font); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 11px 28px 11px 12px; min-height: 46px; width: 100%; background: #fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27%3E%3Cpath d=%27M1 1l4 4 4-4%27 fill=%27none%27 stroke=%27%23111%27 stroke-width=%271.5%27/%3E%3C/svg%3E") no-repeat right 12px center; -webkit-appearance: none; appearance: none; }
 .bk__f select:focus { outline: none; border-color: var(--ink); }
-.bk .bk__slots--dep { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.bk .slot { padding: 10px 4px; font-size: 14px; }
 .bk__f { display: grid; gap: 6px; font-size: 13px; color: var(--muted); min-width: 0; }
 .bk__f input { font: 400 16px var(--font); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; background: #fff; width: 100%; min-width: 0; -webkit-appearance: none; appearance: none; min-height: 46px; }
 .bk__f input:focus { outline: none; border-color: var(--ink); }

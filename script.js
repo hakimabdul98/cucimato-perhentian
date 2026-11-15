@@ -602,6 +602,11 @@ function bkPhone() {
   return `${bk.cc} ${d}`;
 }
 
+// Boat time dropdown (scrollable picker on phones)
+const timeSelect = (name, times) => `<select name="${name}" required>
+  <option value=""${bk[name] ? "" : " selected"} disabled>Select time</option>
+  ${times.map(t => `<option${t === bk[name] ? " selected" : ""}>${t}</option>`).join("")}</select>`;
+
 // Boat to the island: same times as the Ferry Schedule tab
 const DEPART_TIMES = FERRY_SCHEDULE.depart.map(s => `${s.t} ${s.ap}`);
 
@@ -657,10 +662,11 @@ function renderBooking() {
         <label class="bk__f">${hotel ? "Check-in" : "Depart"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
         <label class="bk__f">${hotel ? "Check-out" : "Return"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
       </div>
-      ${hotel ? "" : `<div class="bk__f">Boat to the island (from Kuala Besut Jetty)
-        <div class="slots bk__slots--dep" role="radiogroup" aria-label="Boat to the island">${DEPART_TIMES.map(t => `<button type="button" class="slot" role="radio" data-bkdep="${t}" aria-checked="${t === bk.dep}">${t}</button>`).join("")}</div></div>
-      <div class="bk__f">Return boat (from the island)
-        <div class="slots" role="radiogroup" aria-label="Return boat time">${FERRY.returnTimes.map(t => `<button type="button" class="slot" role="radio" data-bkret="${t}" aria-checked="${t === bk.ret}">${t}</button>`).join("")}</div>
+      ${hotel ? "" : `<div>
+        <div class="bk__grid">
+          <label class="bk__f">Boat to the island${timeSelect("dep", DEPART_TIMES)}</label>
+          <label class="bk__f">Return boat${timeSelect("ret", FERRY.returnTimes)}</label>
+        </div>
         <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
       <div class="bk__grid">${pax("adults", "Adults", "", 1)}${pax("children", "Children", "1–9 years", 0)}</div>
       ${hotel ? `<div><p class="bk__lbl">Add-on activities (optional)</p><div class="bk__chips">${ADDONS.map(a => `<button type="button" class="bk__chip" data-bkaddon="${esc(a.value)}" aria-pressed="${bk.addons.has(a.value)}">${esc(a.label || a.value)}${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</button>`).join("")}</div></div>`
@@ -760,10 +766,6 @@ bkSheet.addEventListener("click", (e) => {
   if (e.target === bkSheet || e.target.closest("[data-bkclose]")) { bkSheet.close(); return; }
   const pax = e.target.closest("[data-bkpax]");
   if (pax && !pax.disabled) { bk[pax.dataset.bkpax] += +pax.dataset.d; renderBooking(); return; }
-  const dep = e.target.closest("[data-bkdep]");
-  if (dep) { bk.dep = dep.dataset.bkdep; bk.error = ""; renderBooking(); return; }
-  const ret = e.target.closest("[data-bkret]");
-  if (ret) { bk.ret = ret.dataset.bkret; bk.error = ""; renderBooking(); return; }
   const add = e.target.closest("[data-bkaddon]");
   if (add) { const v = add.dataset.bkaddon; bk.addons.has(v) ? bk.addons.delete(v) : bk.addons.add(v); add.setAttribute("aria-pressed", bk.addons.has(v)); }
 });
