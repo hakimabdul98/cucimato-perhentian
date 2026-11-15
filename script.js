@@ -1,255 +1,354 @@
 /* =========================================================
-   Cucimato Perhentian Island: package data & page behaviour
-   To change prices or packages, edit PACKAGES below.
+   Cucimato Perhentian Island — page behaviour
+   Data to edit lives at the top of each section:
+     FERRY (prices, times), HOTEL_PACKAGES, GROUND_TRIPS, FERRY_SCHEDULE
    ========================================================= */
 
 const WHATSAPP = "60192094669";
-
-// p2d1n / p3d2n: price in RM. null shows "Coming soon".
-// id must match the image names in images/photos/ (e.g. kiara-main.webp).
-const PACKAGES = [
-  { id: "kiara", name: "Kiara Perhentian", tags: ["village", "culture"],
-    stay: "Air-conditioned room", extras: [], p2d1n: 195, p3d2n: 240 },
-  { id: "fauna", name: "Fauna Beach Chalet", tags: ["beachfront", "seaview", "fireshow"],
-    stay: "Beachfront chalet", extras: [], p2d1n: 199, p3d2n: 245 },
-  { id: "perhentian-bay", name: "Perhentian Bay", tags: ["seaview", "culture"],
-    stay: "Seaview room", extras: [], p2d1n: 219, p3d2n: 289 },
-  { id: "nemo", name: "Nemo Chalet", tags: ["honeymoon", "seaview", "culture"],
-    stay: "Seaview chalet", extras: [], p2d1n: 219, p3d2n: 289 },
-  { id: "flora-bay", name: "Flora Bay Resort", tags: ["beachfront", "seaview", "fireshow"],
-    stay: "Beachfront resort", extras: ["breakfast"], p2d1n: 220, p3d2n: 290 },
-  { id: "arwana", name: "Arwana Perhentian Resort", tags: ["premium", "honeymoon", "beachfront"],
-    stay: "Premium resort", extras: ["breakfast"], p2d1n: null, p3d2n: null },
-  { id: "sharila", name: "Shari-la Island Resort", tags: ["sunset", "fireshow"],
-    stay: "Resort at a sunset view spot", extras: ["breakfast"], p2d1n: null, p3d2n: null },
-];
-
-const TAGS = {
-  beachfront: "Beachfront", seaview: "Seaview", honeymoon: "Honeymoon", fireshow: "Fire show",
-  culture: "Culture", village: "Village", premium: "Premium", sunset: "Sunset spot",
-};
-const FILTERS = { all: "All", beachfront: "Beachfront", seaview: "Seaview", honeymoon: "Honeymoon", fireshow: "Fire show", culture: "Culture" };
-
-const GALLERY = ["perhentian-bay-1", "nemo-3", "fauna-3", "perhentian-bay-3", "sharila-3", "nemo-2"];
-
+const waLink = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
 const MSG_GENERAL = "Hi Cucimato! I'm interested in a Perhentian Island package. Could you share more details?";
 const msgFor = (name) => `Hi Cucimato! I'm interested in the *${name}* package.\nDates: \nNumber of people: \nLength (2D1N / 3D2N): `;
-const waLink = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
+const rm = (n) => "RM" + n.toLocaleString("en-MY");
+const $ = (id) => document.getElementById(id);
 
-let filter = "all";
-const cheapest = Math.min(...PACKAGES.filter(p => p.p2d1n).map(p => p.p2d1n));
-
-/* ---------- render ---------- */
-function renderFilters() {
-  document.getElementById("filters").innerHTML = Object.entries(FILTERS).map(([key, label]) =>
-    `<button class="chip" role="tab" data-filter="${key}" aria-selected="${key === filter}">${label}</button>`
-  ).join("");
+/* ---------- Hero tabs (Book a ferry / Hotel + Packages / Ground Packages / Ferry Schedule) ---------- */
+const heroTabs = [...document.querySelectorAll(".htab")];
+function selectTab(name) {
+  heroTabs.forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
+  ["ferry", "hotel", "ground", "schedule"].forEach(p => { $("panel-" + p).hidden = p !== name; });
 }
+heroTabs.forEach(tab => tab.addEventListener("click", () => selectTab(tab.dataset.tab)));
 
-const price = (label, value) =>
-  `<div>${label}<strong${value ? "" : ' class="soon"'}>${value ? "RM" + value : "Coming soon"}</strong></div>`;
-
-function renderPackages() {
-  const list = PACKAGES.filter(p => filter === "all" || p.tags.includes(filter));
-  document.getElementById("pkgGrid").innerHTML = list.map(p => {
-    const badge = p.p2d1n === cheapest ? "Best value" : "";
-    const stay = p.stay + (p.extras.includes("breakfast") ? " · Breakfast included" : "");
-    return `
-    <article class="card">
-      <button class="card__media" type="button" data-poster="${p.id}" aria-label="View ${p.name} poster">
-        <img src="images/photos/${p.id}-main.webp" alt="${p.name}" loading="lazy">
-        ${badge ? `<span class="card__badge">${badge}</span>` : ""}
-      </button>
-      <div class="card__body">
-        <p class="card__tags">${p.tags.map(t => TAGS[t]).join(" · ")}</p>
-        <h3>${p.name}</h3>
-        <p class="card__stay">${stay}</p>
-        <div class="card__price">${price("2D1N from", p.p2d1n)}${price("3D2N from", p.p3d2n)}</div>
-        <a class="card__link" href="${waLink(msgFor(p.name))}" target="_blank" rel="noopener">${p.p2d1n ? "Book on WhatsApp" : "Ask for price"} →</a>
-      </div>
-    </article>`;
-  }).join("");
+// Header links open the matching tab and scroll to it
+const TAB_HASH = { ferry: "#book-ferry", hotel: "#hotel-packages", ground: "#ground-packages", schedule: "#ferry-schedule" };
+function openTabFromLink(name) {
+  selectTab(name);
+  const bar = document.querySelector(".hero__tabs");
+  const y = bar.getBoundingClientRect().top + window.scrollY - 88;
+  window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
 }
-
-function renderGallery() {
-  document.getElementById("galleryGrid").innerHTML = GALLERY.map(n =>
-    `<button type="button" data-zoom="images/photos/${n}.webp" aria-label="Enlarge photo"><img src="images/photos/${n}.webp" alt="" loading="lazy"></button>`
-  ).join("");
-}
+document.querySelectorAll("[data-tab-link]").forEach(a => a.addEventListener("click", (e) => {
+  e.preventDefault();
+  openTabFromLink(a.dataset.tabLink);
+  history.replaceState(null, "", a.getAttribute("href"));
+}));
+// Deep link, e.g. .../#ferry-schedule
+const fromHash = Object.keys(TAB_HASH).find(k => TAB_HASH[k] === location.hash);
+if (fromHash) selectTab(fromHash);
 
 /* =========================================================
-   Boat ticket booking (return trip)
-   Edit prices, times and ages here. child: null = "price on WhatsApp".
+   Book a ferry — Kuala Besut Jetty <-> Perhentian Island (return)
    ========================================================= */
-const BOAT = {
-  trips: [
-    { id: "boat", name: "Boat transfer (return)", adult: 80, child: 40 },
-    { id: "perhentian", name: "Boat + Snorkeling Perhentian", adult: 130, child: null },
-    { id: "rawa", name: "Boat + Snorkeling Rawa Island", adult: 150, child: null },
-  ],
-  departWindow: "8am–4pm",                  // to the island: flexible, confirmed on WhatsApp
-  returnTimes: ["8:00 AM", "12:00 PM", "4:00 PM"], // back to the jetty: fixed
-  adultAge: "Age 12+",
-  childAge: "Age 3–11",
-  minDaysAhead: 1,      // earliest departure = today + this many days
-  maxMonthsAhead: 6,    // how far ahead the calendar goes
-  closedMonths: [],     // e.g. [11, 12, 1, 2] to block monsoon months (1 = Jan)
+const FERRY = {
+  adult: 80,
+  child: 40,                                // child = 1–9 years old
+  departWindow: "8am–5pm",                  // to the island: confirmed on WhatsApp
+  returnTimes: ["8:00 AM", "12:00 PM", "4:00 PM"],
+  minDaysAhead: 1,                          // earliest depart = tomorrow
+  maxMonthsAhead: 6,
+  closedMonths: [],                         // e.g. [11, 12, 1, 2] to block monsoon months
   maxGuests: 30,
 };
 
-const booking = { trip: BOAT.trips[0].id, depart: null, ret: null, returnTime: null, adults: 2, children: 0 };
 const today = new Date(); today.setHours(0, 0, 0, 0);
-const firstBookable = new Date(today); firstBookable.setDate(today.getDate() + BOAT.minDaysAhead);
-const lastBookable = new Date(today.getFullYear(), today.getMonth() + BOAT.maxMonthsAhead + 1, 0);
-let calView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
-
-const rm = (n) => "RM" + n.toLocaleString("en-MY");
+const firstBookable = new Date(today); firstBookable.setDate(today.getDate() + FERRY.minDaysAhead);
+const lastBookable = new Date(today.getFullYear(), today.getMonth() + FERRY.maxMonthsAhead + 1, 0);
 const fmtDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+const shortDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const sameDay = (a, b) => a && b && a.getTime() === b.getTime();
-const isBookable = (d) => d >= firstBookable && d <= lastBookable && !BOAT.closedMonths.includes(d.getMonth() + 1);
+const isBookable = (d) => d >= firstBookable && d <= lastBookable && !FERRY.closedMonths.includes(d.getMonth() + 1);
 
-function renderCalendar() {
-  const y = calView.getFullYear(), m = calView.getMonth();
-  document.getElementById("calMonth").textContent = calView.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-  document.getElementById("calPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
-  document.getElementById("calNext").disabled = y === lastBookable.getFullYear() && m === lastBookable.getMonth();
+const ferry = { depart: null, ret: null, returnTime: null, adults: 1, children: 0 };
+let fView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
 
+function fMonthHTML(y, m) {
   const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
   const days = new Date(y, m + 1, 0).getDate();
   let html = "<span></span>".repeat(lead);
   for (let d = 1; d <= days; d++) {
     const date = new Date(y, m, d);
-    const isStart = sameDay(date, booking.depart), isEnd = sameDay(date, booking.ret);
-    const inRange = booking.depart && booking.ret && date > booking.depart && date < booking.ret;
-    // while picking the return date, days before departure are not selectable
-    const beforeDepart = booking.depart && !booking.ret && date < booking.depart;
-    const cls = ["cal__day", sameDay(date, today) && "is-today", isStart && "is-start", isEnd && "is-end", inRange && "in-range"].filter(Boolean).join(" ");
-    const tag = isStart ? " (departure)" : isEnd ? " (return)" : "";
-    html += `<button type="button" class="${cls}" data-day="${d}" aria-label="${fmtDate(date)}${tag}"
+    const isStart = sameDay(date, ferry.depart), isEnd = sameDay(date, ferry.ret);
+    const inRange = ferry.depart && ferry.ret && date > ferry.depart && date < ferry.ret;
+    const beforeDepart = ferry.depart && !ferry.ret && date < ferry.depart;
+    html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}" data-fday="${y}-${m}-${d}"
+      aria-label="${fmtDate(date)}${isStart ? " (depart)" : isEnd ? " (return)" : ""}"
       aria-pressed="${isStart || isEnd}" ${isBookable(date) && !beforeDepart ? "" : "disabled"}>${d}</button>`;
   }
-  document.getElementById("calDays").innerHTML = html;
-  document.getElementById("calHint").textContent =
-    !booking.depart ? "Tap your departure date." :
-    !booking.ret ? "Now tap your return date." :
-    "Tap a date to start again.";
+  const title = new Date(y, m, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  return `<div class="fcal__month"><p>${title}</p>
+    <div class="cal__grid cal__dow" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+    <div class="cal__grid">${html}</div></div>`;
 }
 
-function renderTrips() {
-  document.getElementById("tripList").innerHTML = BOAT.trips.map(t =>
-    `<button type="button" class="trip" role="radio" data-trip="${t.id}" aria-checked="${t.id === booking.trip}">
-      ${t.name}<span>${rm(t.adult)} / adult</span></button>`
-  ).join("");
+function renderFerryCal() {
+  const y = fView.getFullYear(), m = fView.getMonth();
+  const second = new Date(y, m + 1, 1); // handles Dec -> Jan
+  $("fCalMonths").innerHTML = fMonthHTML(y, m) + fMonthHTML(second.getFullYear(), second.getMonth());
+  $("fCalPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
+  $("fCalNext").disabled = second.getFullYear() === lastBookable.getFullYear() && second.getMonth() === lastBookable.getMonth();
+  $("fCalHint").textContent = !ferry.depart ? "Select your depart date"
+    : !ferry.ret ? "Now select your return date" : `${shortDate(ferry.depart)} → ${shortDate(ferry.ret)}`;
 }
 
-function renderSlots() {
-  document.getElementById("slotList").innerHTML = BOAT.returnTimes.map(t =>
-    `<button type="button" class="slot" role="radio" data-slot="${t}" aria-checked="${t === booking.returnTime}">${t}</button>`
-  ).join("");
+function renderRetSlots() {
+  $("fRetSlots").innerHTML = FERRY.returnTimes.map(t =>
+    `<button type="button" class="slot" role="radio" data-ret="${t}" aria-checked="${t === ferry.returnTime}">${t}</button>`).join("");
 }
 
-function renderBooking() {
-  const trip = BOAT.trips.find(t => t.id === booking.trip);
-  const { adults, children, depart, ret, returnTime } = booking;
-  document.getElementById("adultsOut").textContent = adults;
-  document.getElementById("childrenOut").textContent = children;
-  document.querySelector('[data-step="adults"][data-d="-1"]').disabled = adults <= 1;
-  document.querySelector('[data-step="children"][data-d="-1"]').disabled = children <= 0;
-  document.querySelectorAll('[data-d="1"]').forEach(b => { b.disabled = adults + children >= BOAT.maxGuests; });
+function renderFerryPanel() {
+  const { depart, ret, returnTime, adults, children } = ferry;
+  $("fDatesVal").textContent = depart ? `${shortDate(depart)} – ${ret ? shortDate(ret) : "Return?"}` : "Select dates";
+  $("fRetVal").textContent = returnTime || "Select time";
+  $("fPaxVal").textContent = `${adults} Adult${adults > 1 ? "s" : ""}${children ? `, ${children} Child${children > 1 ? "ren" : ""}` : ""}`;
+  $("fAdults").textContent = adults;
+  $("fChildren").textContent = children;
+  document.querySelector('[data-fpax="adults"][data-d="-1"]').disabled = adults <= 1;
+  document.querySelector('[data-fpax="children"][data-d="-1"]').disabled = children <= 0;
+  document.querySelectorAll('[data-fpax][data-d="1"]').forEach(b => { b.disabled = adults + children >= FERRY.maxGuests; });
 
-  const childKnown = trip.child !== null;
-  const total = adults * trip.adult + (childKnown ? children * trip.child : 0);
-  const rows = [
-    ["Trip", trip.name],
-    ["Departure", depart ? `${fmtDate(depart)}, ${BOAT.departWindow}` : "Not selected"],
-    ["Return", ret ? `${fmtDate(ret)}${returnTime ? ", " + returnTime : ""}` : "Not selected"],
-    [`${adults} adult${adults > 1 ? "s" : ""} × ${rm(trip.adult)}`, rm(adults * trip.adult)],
-  ];
-  if (children) rows.push([`${children} child${children > 1 ? "ren" : ""}${childKnown ? " × " + rm(trip.child) : ""}`,
-    childKnown ? rm(children * trip.child) : "Price on WhatsApp"]);
-  document.getElementById("summary").innerHTML =
-    rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("") +
-    `<div class="total"><dt>Total${children && !childKnown ? " (adults)" : ""}</dt><dd>${rm(total)}</dd></div>`;
-
-  const btn = document.getElementById("bookBtn");
-  const missing = !depart ? "Choose your departure date" : !ret ? "Choose your return date" : !returnTime ? "Choose a return boat time" : "";
+  const go = $("fGo");
+  const total = adults * FERRY.adult + children * FERRY.child;
+  const missing = !depart ? "Select dates" : !ret ? "Select return date" : !returnTime ? "Select return time" : "";
   if (missing) {
-    btn.textContent = missing;
-    btn.setAttribute("aria-disabled", "true");
-    btn.removeAttribute("href");
+    go.textContent = missing;
+    go.setAttribute("aria-disabled", "true");
+    go.removeAttribute("href");
     return;
   }
-  const msg = [
-    "Hi Cucimato! I'd like to book a boat ticket.",
-    `Trip: ${trip.name}`,
-    `Departure: ${fmtDate(depart)} (${BOAT.departWindow}, please confirm the time)`,
+  go.textContent = `Book · ${rm(total)}`;
+  go.removeAttribute("aria-disabled");
+  go.href = waLink([
+    "Hi Cucimato! I'd like to book a ferry ticket.",
+    "Route: Kuala Besut Jetty ⇄ Perhentian Island (return)",
+    `Depart: ${fmtDate(depart)} (${FERRY.departWindow}, please confirm the time)`,
     `Return: ${fmtDate(ret)}, ${returnTime}`,
     `Adults: ${adults}`,
-    `Children: ${children}`,
-    `Total: ${rm(total)}${children && !childKnown ? " + children" : ""}`,
-  ].join("\n");
-  btn.textContent = `Book for ${rm(total)}${children && !childKnown ? "+" : ""}`;
-  btn.removeAttribute("aria-disabled");
-  btn.href = waLink(msg);
+    `Children (1–9): ${children}`,
+    `Total: ${rm(total)}`,
+  ].join("\n"));
 }
 
-document.getElementById("calDays").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-day]");
-  if (!b || b.disabled) return;
-  const date = new Date(calView.getFullYear(), calView.getMonth(), +b.dataset.day);
-  if (!booking.depart || booking.ret) { booking.depart = date; booking.ret = null; }
-  else booking.ret = date; // same day allowed (day trip)
-  renderCalendar(); renderBooking();
-});
-document.getElementById("calPrev").addEventListener("click", () => { calView.setMonth(calView.getMonth() - 1); renderCalendar(); });
-document.getElementById("calNext").addEventListener("click", () => { calView.setMonth(calView.getMonth() + 1); renderCalendar(); });
-document.getElementById("tripList").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-trip]");
-  if (!b) return;
-  booking.trip = b.dataset.trip;
-  renderTrips(); renderBooking();
-});
-document.getElementById("slotList").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-slot]");
-  if (!b) return;
-  booking.returnTime = b.dataset.slot;
-  renderSlots(); renderBooking();
-});
-document.getElementById("booker").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-step]");
-  if (!b || b.disabled) return;
-  booking[b.dataset.step] += +b.dataset.d;
-  renderBooking();
-});
-document.querySelectorAll(".guest small")[0].textContent = BOAT.adultAge;
-document.querySelectorAll(".guest small")[1].textContent = BOAT.childAge;
-
-/* ---------- events ---------- */
-document.getElementById("filters").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-filter]");
-  if (!b) return;
-  filter = b.dataset.filter;
-  renderFilters();
-  renderPackages();
-});
-
-const lb = document.getElementById("lightbox");
-const lbImg = document.getElementById("lbImg");
-function openLightbox(src, alt = "") {
-  lbImg.src = src; lbImg.alt = alt;
-  if (typeof lb.showModal === "function") lb.showModal(); else window.open(src, "_blank");
+const POPS = { dates: ["fDatesPop", "fDatesBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
+function fToggle(which, open) {
+  const [popId, btnId] = POPS[which];
+  const willOpen = open ?? $(popId).hidden;
+  Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
+  $(popId).hidden = !willOpen;
+  $(btnId).setAttribute("aria-expanded", String(willOpen));
+  if (willOpen && which === "dates") renderFerryCal();
 }
-document.getElementById("lbClose").addEventListener("click", () => lb.close());
-lb.addEventListener("click", (e) => { if (e.target === lb) lb.close(); });
+const closeAllPops = () => Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
 
-document.addEventListener("click", (e) => {
-  const poster = e.target.closest("[data-poster]");
-  if (poster) return openLightbox(`images/posters/${poster.dataset.poster}.webp`, "Package poster");
-  const zoom = e.target.closest("[data-zoom]");
-  if (zoom) return openLightbox(zoom.dataset.zoom);
+$("fDatesBtn").addEventListener("click", () => fToggle("dates"));
+$("fRetBtn").addEventListener("click", () => fToggle("ret"));
+$("fPaxBtn").addEventListener("click", () => fToggle("pax"));
+document.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => fToggle(b.dataset.close, false)));
+$("fCalPrev").addEventListener("click", () => { fView.setMonth(fView.getMonth() - 1); renderFerryCal(); });
+$("fCalNext").addEventListener("click", () => { fView.setMonth(fView.getMonth() + 1); renderFerryCal(); });
+$("fCalMonths").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-fday]");
+  if (!b || b.disabled) return;
+  const [y, m, d] = b.dataset.fday.split("-").map(Number);
+  const date = new Date(y, m, d);
+  if (!ferry.depart || ferry.ret) { ferry.depart = date; ferry.ret = null; }
+  else ferry.ret = date; // same day allowed (day trip)
+  renderFerryCal(); renderFerryPanel();
+  if (ferry.ret) setTimeout(() => fToggle(ferry.returnTime ? "dates" : "ret", !ferry.returnTime), 250); // next: return time
+});
+$("fRetSlots").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ret]");
+  if (!b) return;
+  ferry.returnTime = b.dataset.ret;
+  renderRetSlots(); renderFerryPanel();
+  setTimeout(() => fToggle("ret", false), 200);
+});
+$("fPaxPop").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-fpax]");
+  if (!b || b.disabled) return;
+  ferry[b.dataset.fpax] += +b.dataset.d;
+  renderFerryPanel();
+});
+// Book button: when something is missing, open the field that needs it
+$("fGo").addEventListener("click", (e) => {
+  if ($("fGo").getAttribute("aria-disabled") !== "true") return; // goes to WhatsApp
+  e.preventDefault();
+  e.stopPropagation();
+  fToggle(!ferry.depart || !ferry.ret ? "dates" : "ret", true);
+});
+document.addEventListener("click", (e) => { if (!e.target.closest(".fpop-wrap") && !e.target.closest("#fGo")) closeAllPops(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAllPops(); });
+
+renderRetSlots();
+renderFerryPanel();
+
+/* =========================================================
+   Hotel + Packages — DUMMY data copied from the 2026 posters.
+   Update before the new season.
+   ========================================================= */
+const HOTEL_PACKAGES = [
+  { id: "flora-bay", name: "Flora Bay Resort", tagline: "Snorkeling | Fireshow | Beachfront | Seaview", stay: "Beachfront accommodation", breakfast: true, p2d1n: 220, p3d2n: 290, type: "Resort" },
+  { id: "arwana", name: "Arwana Perhentian Resort", tagline: "Premium Stay | Honeymoon | Beach", stay: "Premium accommodation", breakfast: true, p2d1n: null, p3d2n: null, type: "Resort" },
+  { id: "sharila", name: "Shari-la Island Resort", tagline: "Sunset Spot | Fireshow | Windmills", stay: "Comfy accommodation at sunset view spot", breakfast: true, p2d1n: null, p3d2n: null, type: "Resort" },
+  { id: "fauna", name: "Fauna Beach Chalet", tagline: "Snorkeling | Beachfront | Seaview | Fireshow", stay: "Beachfront accommodation", breakfast: false, p2d1n: 199, p3d2n: 245, type: "Chalet" },
+  { id: "nemo", name: "Nemo Chalet", tagline: "Snorkeling | Honeymoon | Seaview | Cultures", stay: "Seaview accommodation", breakfast: false, p2d1n: 219, p3d2n: 289, type: "Resort" },
+  { id: "perhentian-bay", name: "Perhentian Bay", tagline: "Snorkeling | Seaview | Cultures", stay: "Seaview accommodation", breakfast: false, p2d1n: 219, p3d2n: 289, type: "Resort" },
+  { id: "kiara", name: "Kiara Perhentian", tagline: "Snorkeling | Village | Community | Cultures", stay: "Aircond accommodation", breakfast: false, p2d1n: 195, p3d2n: 240, type: "Hotel" },
+];
+
+const posterIncludes = (p) => [
+  p.stay,
+  "Snorkeling Perhentian Island trip",
+  "Equipment provided",
+  "Round trip transfer boat",
+  ...(p.breakfast ? ["Free breakfast buffet"] : []),
+  "Free lunch",
+  "Free gift",
+];
+
+// Card widths that fill a 4-column row: wide, narrow, narrow / narrow, narrow, wide ...
+function bentoSpans(n) {
+  const pattern = [2, 1, 1, 1, 1, 2];
+  const spans = Array.from({ length: n }, (_, i) => pattern[i % pattern.length]);
+  const used = spans.reduce((a, b) => a + b, 0) % 4;
+  if (used) spans[n - 1] += 4 - used; // last card stretches to close the row
+  return spans;
+}
+
+function renderBento() {
+  const spans = bentoSpans(HOTEL_PACKAGES.length);
+  $("bento").innerHTML = HOTEL_PACKAGES.map((p, i) => `
+    <article class="bcard${spans[i] > 1 ? " bcard--w" + spans[i] : ""}">
+      <img src="images/photos/${p.id}-main.webp" alt="" loading="lazy">
+      <div class="bcard__body">
+        <div>
+          <div class="bcard__name">${p.name}</div>
+          <span class="bcard__from">2D1N from</span>
+          <span class="bcard__price">${p.p2d1n ? rm(p.p2d1n) : "Stay tuned"}</span>
+        </div>
+        <div class="bcard__actions">
+          <a class="bbtn bbtn--solid" href="${waLink(msgFor(p.name))}" target="_blank" rel="noopener">Book Now</a>
+          <button type="button" class="bbtn bbtn--ghost" data-pinfo="${p.id}">More Info</button>
+        </div>
+      </div>
+    </article>`).join("");
+}
+
+const pinfo = $("pkgInfo");
+function showInfo(html) { $("pinfoBody").innerHTML = html; pinfo.showModal(); }
+$("pinfoClose").addEventListener("click", () => pinfo.close());
+pinfo.addEventListener("click", (e) => { if (e.target === pinfo) pinfo.close(); });
+
+function openPkgInfo(id) {
+  const p = HOTEL_PACKAGES.find(x => x.id === id);
+  const price = (v) => v ? rm(v) : "Stay tuned";
+  showInfo(`
+    <div class="pinfo__poster"><img src="images/posters/${p.id}.webp" alt="${p.name} package poster"></div>
+    <div class="pinfo__text">
+      <h3 id="pinfoName">${p.name}</h3>
+      <p class="pinfo__tags">${p.tagline}</p>
+      <ul class="pinfo__list">${posterIncludes(p).map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="pinfo__prices">
+        <div><small>2 days 1 night from</small><strong>${price(p.p2d1n)}</strong></div>
+        <div><small>3 days 2 nights from</small><strong>${price(p.p3d2n)}</strong></div>
+      </div>
+      <p class="pinfo__inc">Guide · ${p.type} · Snorkeling · Sea transfer</p>
+      <a class="btn" href="${waLink(msgFor(p.name))}" target="_blank" rel="noopener">Book Now on WhatsApp</a>
+    </div>`);
+}
+$("bento").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pinfo]");
+  if (b) openPkgInfo(b.dataset.pinfo);
+});
+renderBento();
+
+/* =========================================================
+   Ground Packages — ferry + snorkeling trips.
+   DUMMY photos for now; info from the Boat Service & Snorkeling
+   poster. price: null = "Price on request".
+   ========================================================= */
+const GROUND_TRIPS = [
+  { id: "perhentian", name: "Ferry + Perhentian Island Snorkeling Trip", img: "ground-perhentian", pos: "50% 30%", price: 130 },
+  { id: "rawa", name: "Ferry + Rawa Island Snorkeling Trip", img: "ground-rawa", pos: "50% 55%", price: 150 },
+  { id: "redang", name: "Ferry + Redang Island Snorkeling Trip", img: "ground-redang", pos: "50% 60%", price: null },
+];
+const GROUND_INCLUDES = [
+  "Minimum stay 2D1N",
+  "Resorts or hotels around Perhentian Island (book your own stay)",
+  "Round trip transfer boat",
+  "Snorkeling activity",
+  "Free gift",
+];
+
+function renderGround() {
+  $("bentoGround").innerHTML = GROUND_TRIPS.map(t => `
+    <article class="bcard">
+      <img src="images/photos/${t.img}.webp" alt="" loading="lazy" style="object-position:${t.pos}">
+      <div class="bcard__body">
+        <div>
+          <div class="bcard__name">${t.name}</div>
+          <span class="bcard__from">From</span>
+          <span class="bcard__price">${t.price ? rm(t.price) : "Price on request"}</span>
+          ${t.price ? '<span class="bcard__note">per adult</span>' : ""}
+        </div>
+        <div class="bcard__actions">
+          <a class="bbtn bbtn--solid" href="${waLink(msgFor(t.name))}" target="_blank" rel="noopener">Book Now</a>
+          <button type="button" class="bbtn bbtn--ghost" data-ginfo="${t.id}">More Info</button>
+        </div>
+      </div>
+    </article>`).join("");
+}
+
+function openGroundInfo(id) {
+  const t = GROUND_TRIPS.find(x => x.id === id);
+  const priced = GROUND_TRIPS.filter(x => x.price);
+  showInfo(`
+    <div class="pinfo__poster"><img src="images/posters/boat-snorkeling.webp" alt="Boat Service and Snorkeling poster"></div>
+    <div class="pinfo__text">
+      <h3 id="pinfoName">${t.name}</h3>
+      <p class="pinfo__tags">Ground Package | Self Hotel Booking</p>
+      <ul class="pinfo__list">${GROUND_INCLUDES.map(x => `<li>${x}</li>`).join("")}</ul>
+      <div class="pinfo__prices">
+        <div><small>This trip, per adult</small><strong>${t.price ? rm(t.price) : "On request"}</strong></div>
+        <div><small>${priced.map(o => o.name.replace("Ferry + ", "").replace(" Snorkeling Trip", "")).join(" / ")}</small><strong>${priced.map(o => rm(o.price)).join(" / ")}</strong></div>
+      </div>
+      <p class="pinfo__inc">Guide · Snorkeling · Sea transfer</p>
+      <a class="btn" href="${waLink(msgFor(t.name))}" target="_blank" rel="noopener">Book Now on WhatsApp</a>
+    </div>`);
+}
+$("bentoGround").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-ginfo]");
+  if (b) openGroundInfo(b.dataset.ginfo);
+});
+renderGround();
+
+/* =========================================================
+   Ferry Schedule
+   ========================================================= */
+const FERRY_SCHEDULE = {
+  depart: ["8", "9", "10", "11", "12", "1", "2", "3", "4", "5"].map((h, i) => ({ t: `${h}:00`, ap: i < 4 ? "AM" : "PM" })),
+  ret: [{ t: "8:00", ap: "AM" }, { t: "12:00", ap: "PM" }, { t: "4:00", ap: "PM" }],
+};
+const slotsHTML = (list) => list.map(s => `<div class="sched__slot"><b>${s.t}</b><span>${s.ap}</span></div>`).join("");
+const privateFerryLink = waLink("Hi Cucimato! I'd like to request a private ferry.\nDate: \nNumber of people: ");
+
+document.querySelectorAll("[data-sched]").forEach(el => {
+  el.innerHTML = `
+    <div class="sched__block">
+      <div class="sched__head"><strong>Departure</strong><small>Kuala Besut Jetty → Perhentian Island</small></div>
+      <div class="sched__grid">${slotsHTML(FERRY_SCHEDULE.depart)}</div>
+    </div>
+    <div class="sched__block sched__block--ret">
+      <div class="sched__head"><strong>Return</strong><small>Perhentian Island → Kuala Besut Jetty</small></div>
+      <div class="sched__grid">${slotsHTML(FERRY_SCHEDULE.ret)}</div>
+    </div>
+    <ul class="sched__notes">
+      <li>Subject to weather and traffic conditions.</li>
+      <li>Private ferry on request, <a href="${privateFerryLink}" target="_blank" rel="noopener">WhatsApp us</a>.</li>
+      <li>Please arrive 20 minutes before departure.</li>
+    </ul>`;
 });
 
-// WhatsApp links in static HTML
+/* ---------- Site chrome: WhatsApp links, intro, mobile menu, year ---------- */
 document.querySelectorAll("[data-wa]").forEach(el => {
   const key = el.dataset.wa;
   el.href = waLink(key === "general" ? MSG_GENERAL : msgFor(key));
@@ -257,25 +356,202 @@ document.querySelectorAll("[data-wa]").forEach(el => {
 
 // intro: skip on click/tap or Esc (it also ends by itself via CSS after ~4s)
 const skipIntro = () => document.documentElement.classList.add("no-intro");
-document.getElementById("intro").addEventListener("click", skipIntro);
+$("intro").addEventListener("click", skipIntro);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") skipIntro(); }, { once: true });
 
-// mobile menu
 const nav = document.querySelector(".nav");
-const burger = document.getElementById("burger");
+const burger = $("burger");
 burger.addEventListener("click", () => {
   const open = nav.classList.toggle("is-open");
   burger.setAttribute("aria-expanded", open);
 });
-document.getElementById("navLinks").addEventListener("click", (e) => {
+$("navLinks").addEventListener("click", (e) => {
   if (e.target.closest("a")) { nav.classList.remove("is-open"); burger.setAttribute("aria-expanded", "false"); }
 });
 
-document.getElementById("year").textContent = new Date().getFullYear();
-renderGallery();
-renderFilters();
-renderPackages();
-renderCalendar();
-renderTrips();
-renderSlots();
-renderBooking();
+$("year").textContent = new Date().getFullYear();
+
+/* =========================================================
+   Hero banner slider (2 slides, cross-fade, dots, swipe)
+   ========================================================= */
+(() => {
+  const banner = document.querySelector(".hero__banner");
+  if (!banner) return;
+  const slides = [...banner.querySelectorAll(".hero__slide")];
+  const dots = [...banner.querySelectorAll(".hero__dots button")];
+  if (slides.length < 2) return;
+  let current = 0, timer = null;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const show = (i) => {
+    current = (i + slides.length) % slides.length;
+    slides.forEach((s, n) => {
+      s.classList.toggle("is-active", n === current);
+      s.setAttribute("aria-hidden", n !== current);
+    });
+    dots.forEach((d, n) => d.setAttribute("aria-current", n === current));
+  };
+  const stop = () => { clearInterval(timer); timer = null; };
+  const start = () => { if (!reduce && !timer) timer = setInterval(() => show(current + 1), 6000); };
+
+  dots.forEach((d, n) => d.addEventListener("click", () => { show(n); stop(); start(); }));
+  banner.addEventListener("mouseenter", stop);
+  banner.addEventListener("mouseleave", start);
+  banner.addEventListener("focusin", stop);
+  banner.addEventListener("focusout", start);
+
+  let x0 = null;
+  banner.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; stop(); }, { passive: true });
+  banner.addEventListener("touchend", (e) => {
+    if (x0 !== null) {
+      const dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 40) show(current + (dx < 0 ? 1 : -1));
+    }
+    x0 = null; start();
+  });
+
+  start();
+})();
+
+/* =========================================================
+   Gallery — expanding-slide carousel (active = wide & sharp,
+   neighbours = narrow & blurred). One slide is an Instagram reel
+   that loads only when tapped.
+   pos   = crop focus (object-position)
+   grade = light/colour touch-up (CSS filter) so photos match
+   ========================================================= */
+const GALLERY = [
+  { src: "g11", pos: "45% 55%", grade: "contrast(1.04) saturate(1.06)", caption: "Perhentian Island from above", alt: "Aerial view of a Perhentian Island bay with boats heading to the jetty" },
+  { src: "g7", pos: "50% 58%", grade: "contrast(1.05) saturate(1.05)", caption: "Snorkeling day out", alt: "Friends in life jackets standing in clear shallow water" },
+  { src: "g8", pos: "50% 55%", grade: "brightness(1.02) contrast(1.04) saturate(1.04)", caption: "Floating together", alt: "Group floating hand in hand in a circle in turquoise water" },
+  { src: "g9", pos: "50% 62%", grade: "contrast(1.06) saturate(1.08)", caption: "Sunset with the crew", alt: "Group sitting on the beach watching the sunset" },
+  { reel: "DU9Qd-Hk465", poster: "images/photos/perhentian-bay-3.webp", pos: "50% 50%", grade: "contrast(1.04) saturate(1.06)", caption: "Watch our reel", alt: "Instagram reel: Perhentian Island" },
+  { src: "g12", pos: "55% 50%", grade: "contrast(1.04) saturate(1.04)", caption: "Crystal clear water", alt: "Snorkelers floating in clear water next to a boat" },
+  { src: "g13", pos: "40% 50%", grade: "brightness(.97) contrast(1.08) saturate(1.06)", caption: "Lata Air Berani, Perhentian Island", alt: "Group photo at Lata Air Berani, Perhentian Island" },
+  { src: "g10", pos: "50% 45%", grade: "brightness(.95) contrast(1.1) saturate(1.06)", caption: "Ready to cross", alt: "Guests gathered at the jetty before the boat ride" },
+];
+
+const playIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+const gtrack = $("gtrack");
+gtrack.innerHTML = GALLERY.map((g, i) => `
+  <button type="button" class="gslide${g.reel ? " gslide--reel" : ""}" data-g="${i}" style="--grade:${g.grade}"
+    aria-label="${i + 1} of ${GALLERY.length}: ${g.alt}">
+    <img src="${g.reel ? g.poster : `images/gallery/${g.src}.webp`}" alt="" loading="lazy" style="object-position:${g.pos}">
+    ${g.reel ? `<span class="greel__play">${playIcon}</span>` : ""}
+    <span class="gslide__cap">
+      <span class="gslide__text">${g.caption}</span>
+      <img class="gslide__logo" src="images/brand/cucimato-logo-white.webp" alt="" width="800" height="587">
+    </span>
+  </button>`).join("");
+
+const gslides = [...gtrack.children];
+let gActive = 0, gTimer = null;
+const gReduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Sizes: active slide takes a share of the width; the two neighbours fill the rest,
+// so exactly 3 slides show. The track slides so the active one sits in view.
+function gLayout() {
+  const W = $("gslider").clientWidth;
+  const gap = W < 560 ? 8 : 12;
+  const A = Math.round(W * (W < 560 ? 0.7 : 0.52));
+  const n = Math.max(40, Math.round((W - A - 2 * gap) / 2));
+  gtrack.style.setProperty("--a", A + "px");
+  gtrack.style.setProperty("--n", n + "px");
+  gtrack.style.setProperty("--gap", gap + "px");
+  const total = A + (GALLERY.length - 1) * (n + gap);
+  const left = gActive * (n + gap);
+  const offset = Math.min(Math.max(0, left - (n + gap)), Math.max(0, total - W));
+  gtrack.style.transform = `translateX(${-offset}px)`;
+}
+
+function gShow(i) {
+  gActive = (i + GALLERY.length) % GALLERY.length;
+  gslides.forEach((s, n) => {
+    s.classList.toggle("is-active", n === gActive);
+    s.setAttribute("aria-current", String(n === gActive));
+  });
+  gLayout();
+}
+const gStop = () => { clearInterval(gTimer); gTimer = null; };
+const gStart = () => { if (!gReduce && !gTimer) gTimer = setInterval(() => gShow(gActive + 1), 4000); };
+
+const gview = $("gview");
+function gOpen(i) {
+  const g = GALLERY[i];
+  $("gviewBody").innerHTML = g.reel
+    ? `<iframe src="https://www.instagram.com/reel/${g.reel}/embed/" title="Instagram reel by @cucimatopulauperhentian" allowfullscreen loading="lazy"></iframe>`
+    : `<img src="images/gallery/${g.src}.webp" alt="${g.alt}" style="filter:${g.grade}">`;
+  gview.showModal();
+  gStop();
+}
+gtrack.addEventListener("click", (e) => {
+  const s = e.target.closest("[data-g]");
+  if (!s) return;
+  const i = +s.dataset.g;
+  if (i === gActive) gOpen(i);          // active slide: open big / play reel
+  else { gShow(i); gStop(); gStart(); } // side slide: bring it to the front
+});
+$("gPrev").addEventListener("click", () => { gShow(gActive - 1); gStop(); gStart(); });
+$("gNext").addEventListener("click", () => { gShow(gActive + 1); gStop(); gStart(); });
+$("gslider").addEventListener("mouseenter", gStop);
+$("gslider").addEventListener("mouseleave", gStart);
+$("gslider").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowRight") { gShow(gActive + 1); gslides[gActive].focus(); }
+  if (e.key === "ArrowLeft") { gShow(gActive - 1); gslides[gActive].focus(); }
+});
+let gx0 = null;
+$("gslider").addEventListener("touchstart", (e) => { gx0 = e.touches[0].clientX; gStop(); }, { passive: true });
+$("gslider").addEventListener("touchend", (e) => {
+  if (gx0 !== null) {
+    const dx = e.changedTouches[0].clientX - gx0;
+    if (Math.abs(dx) > 40) gShow(gActive + (dx < 0 ? 1 : -1));
+  }
+  gx0 = null; gStart();
+});
+window.addEventListener("resize", gLayout);
+// only run the auto-play while the gallery is on screen
+new IntersectionObserver(([en]) => { en.isIntersecting ? gStart() : gStop(); }, { threshold: 0.3 }).observe($("gslider"));
+
+const closeGview = () => { gview.close(); $("gviewBody").innerHTML = ""; gStart(); }; // also stops the reel
+$("gviewClose").addEventListener("click", closeGview);
+gview.addEventListener("click", (e) => { if (e.target === gview) closeGview(); });
+gview.addEventListener("cancel", () => { $("gviewBody").innerHTML = ""; gStart(); });
+
+gShow(0);
+
+/* =========================================================
+   Google reviews (under the gallery slides)
+   Paste each review's text exactly as written on Google into `text`
+   (you can shorten it with "…"). Cards without text stay hidden.
+   stars: the star count shown on Google (1–5).
+   ========================================================= */
+const GOOGLE_RATING = { score: 4.8, count: 46 };
+const GOOGLE_REVIEWS_URL = "https://www.google.com/maps/search/?api=1&query=Cucimato%20Pulau%20Perhentian%20Kuala%20Besut";
+const REVIEWS = [
+  { name: "Jazmeen J.", when: "2 months ago", stars: 5,
+    text: "Everything was so smooth, and the person in charge was really accommodating with all our enquiries. We stayed at arwana and the place and location wise was perfect because its not too congested with people. …" },
+  { name: "Lily S.", when: "5 months ago", stars: 5,
+    text: "I took the package for Perhentian Island with CuciMato Perhentian. Had a wonderful 3 days and 2 nights stay. Such a beautiful beach, clean, crystal clear water and very relaxing, just as I needed. …" },
+  { name: "Manisah F.", when: "4 months ago", stars: 5,
+    text: "Terima kasih pada semua krew cucimato yang terlibat, saya mendapat pengalaman yang seronok sepanjang di perhentian. Thanks to boatman fendi for guiding me during snorkeling point where i can see shark in my eyes! Chalet yang selesa dan makanan yang sedap." },
+];
+
+const starRow = (n) => `<span class="stars" aria-label="${n} out of 5 stars">${"★".repeat(Math.round(n))}${"☆".repeat(5 - Math.round(n))}</span>`;
+(() => {
+  const box = $("greviews");
+  const ready = REVIEWS.filter(r => r.text.trim());
+  box.innerHTML = `
+    <div class="greviews__bar">
+      ${starRow(GOOGLE_RATING.score)}
+      <strong>${GOOGLE_RATING.score}</strong>
+      <span>· ${GOOGLE_RATING.count} Google reviews</span>
+      <a href="${GOOGLE_REVIEWS_URL}" target="_blank" rel="noopener">Read all on Google →</a>
+    </div>
+    ${ready.length ? `<div class="greviews__list">${ready.map(r => `
+      <figure class="rcard">
+        ${r.stars ? starRow(r.stars) : ""}
+        <blockquote>${r.text}</blockquote>
+        <figcaption><strong>${r.name}</strong><span>${r.when} · Google</span></figcaption>
+      </figure>`).join("")}</div>` : ""}`;
+  box.hidden = false;
+})();
