@@ -117,15 +117,7 @@ function renderFerryPanel() {
   }
   go.textContent = `Book · ${rm(total)}`;
   go.removeAttribute("aria-disabled");
-  go.href = waLink([
-    "Hi Cucimato! I'd like to book a ferry ticket.",
-    "Route: Kuala Besut Jetty ⇄ Perhentian Island (return)",
-    `Depart: ${fmtDate(depart)} (${FERRY.departWindow}, please confirm the time)`,
-    `Return: ${fmtDate(ret)}, ${returnTime}`,
-    `Adults: ${adults}`,
-    `Children (1–9): ${children}`,
-    `Total: ${rm(total)}`,
-  ].join("\n"));
+  go.href = "#book"; // opens the booking sheet (see "Booking sheet" below)
 }
 
 const POPS = { dates: ["fDatesPop", "fDatesBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
@@ -170,8 +162,8 @@ $("fPaxPop").addEventListener("click", (e) => {
 });
 // Book button: when something is missing, open the field that needs it
 $("fGo").addEventListener("click", (e) => {
-  if ($("fGo").getAttribute("aria-disabled") !== "true") return; // goes to WhatsApp
   e.preventDefault();
+  if ($("fGo").getAttribute("aria-disabled") !== "true") { openBooking("ferry"); return; }
   e.stopPropagation();
   fToggle(!ferry.depart || !ferry.ret ? "dates" : "ret", true);
 });
@@ -226,7 +218,7 @@ function renderBento() {
           <span class="bcard__price">${p.p2d1n ? rm(p.p2d1n) : "Stay tuned"}</span>
         </div>
         <div class="bcard__actions">
-          <a class="bbtn bbtn--solid" href="${waLink(msgFor(p.name))}" target="_blank" rel="noopener">Book Now</a>
+          <button type="button" class="bbtn bbtn--solid" data-book="hotel" data-id="${p.id}">Check availability</button>
           <button type="button" class="bbtn bbtn--ghost" data-pinfo="${p.id}">More Info</button>
         </div>
       </div>
@@ -252,7 +244,7 @@ function openPkgInfo(id) {
         <div><small>3 days 2 nights from</small><strong>${price(p.p3d2n)}</strong></div>
       </div>
       <p class="pinfo__inc">Guide · ${p.type} · Snorkeling · Sea transfer</p>
-      <a class="btn" href="${waLink(msgFor(p.name))}" target="_blank" rel="noopener">Book Now on WhatsApp</a>
+      <button type="button" class="btn" data-book="hotel" data-id="${p.id}">Check availability</button>
     </div>`);
 }
 $("bento").addEventListener("click", (e) => {
@@ -291,7 +283,7 @@ function renderGround() {
           ${t.price ? '<span class="bcard__note">per adult</span>' : ""}
         </div>
         <div class="bcard__actions">
-          <a class="bbtn bbtn--solid" href="${waLink(msgFor(t.name))}" target="_blank" rel="noopener">Book Now</a>
+          <button type="button" class="bbtn bbtn--solid" data-book="ground" data-id="${t.id}">Book Now</button>
           <button type="button" class="bbtn bbtn--ghost" data-ginfo="${t.id}">More Info</button>
         </div>
       </div>
@@ -312,7 +304,7 @@ function openGroundInfo(id) {
         <div><small>${priced.map(o => o.name.replace("Ferry + ", "").replace(" Snorkeling Trip", "")).join(" / ")}</small><strong>${priced.map(o => rm(o.price)).join(" / ")}</strong></div>
       </div>
       <p class="pinfo__inc">Guide · Snorkeling · Sea transfer</p>
-      <a class="btn" href="${waLink(msgFor(t.name))}" target="_blank" rel="noopener">Book Now on WhatsApp</a>
+      <button type="button" class="btn" data-book="ground" data-id="${t.id}">Book Now</button>
     </div>`);
 }
 $("bentoGround").addEventListener("click", (e) => {
@@ -555,3 +547,234 @@ const starRow = (n) => `<span class="stars" aria-label="${n} out of 5 stars">${"
       </figure>`).join("")}</div>` : ""}`;
   box.hidden = false;
 })();
+
+/* =========================================================
+   Booking sheet
+   - Ferry Ticket and Ground Packages: "Book Now" (price is fixed).
+   - Hotel + Packages: "Check availability" (rooms are confirmed
+     with the resort first, so no price is shown here).
+   Everything is sent to the "CUCIMATO Booking Form 2027" Google Form,
+   which feeds the Cucimato Booking app (Hotel = CM, Ferry/Ground = BS).
+   Choice values below must match the Google Form options exactly.
+   ========================================================= */
+const BOOKING_FORM = {
+  action: "https://docs.google.com/forms/d/e/1FAIpQLSddu1zrP8cpOQGOaDvgNoNB9bwXizUQxHKTk9d_RGXYWAIMgQ/formResponse",
+  name: "entry.1834496729", phone: "entry.485293669", service: "entry.653706730",
+  adults: "entry.1132398241", children: "entry.494899219",
+  start: "entry.1522944943", end: "entry.1490842790",
+  hotel: "entry.296580635", addons: "entry.1251123119",
+  ground: "entry.1185550471", stay: "entry.790395174",
+  HOTEL: "Hotel + Package", GROUND: "Ground Package (Ferry Ticket)",
+};
+// Ground package option names in the Google Form
+const GROUND_FORM_NAME = {
+  ferry: "Ferry Ticket",
+  perhentian: "Ferry Ticket + Perhentian Island Snorkeling Trip",
+  rawa: "Ferry Ticket + Rawa Island Snorkeling Trip",
+  redang: "Ferry Ticket + Redang Island Snorkeling Trip",
+};
+// Add-on activities (Hotel + Packages). price: null = no price shown (quoted in the invoice).
+const ADDONS = [
+  { value: "Rawa Island Snorkeling Trip", price: null },
+  { value: "Redang & Lang Tengah Snorkeling Trip", price: null },
+  { value: "Windmills Hiking & Sunset View", price: null },
+  { value: "Windmills Sight-seeing & Romantic Beach", price: null },
+  { value: "Discovery Scuba Diving", price: null },
+  { value: "Fishing Trip", price: null },
+  { value: "Action Camera Rental RM90/day", label: "Action Camera Rental", price: 90, unit: "day" },
+];
+
+// WhatsApp country codes. Malaysia first (default).
+const COUNTRY_CODES = [
+  ["+60", "MY"], ["+65", "SG"], ["+673", "BN"], ["+62", "ID"], ["+66", "TH"], ["+63", "PH"], ["+84", "VN"],
+  ["+86", "CN"], ["+852", "HK"], ["+886", "TW"], ["+81", "JP"], ["+82", "KR"], ["+91", "IN"],
+  ["+966", "SA"], ["+971", "AE"], ["+44", "UK"], ["+49", "DE"], ["+33", "FR"], ["+31", "NL"],
+  ["+61", "AU"], ["+64", "NZ"], ["+1", "US/CA"],
+];
+// Full WhatsApp number, e.g. "+60 123456789". A number typed with its own "+" code is kept as is.
+function bkPhone() {
+  const raw = bk.phone.trim();
+  if (raw.startsWith("+")) { const d = raw.replace(/\D/g, ""); const c = COUNTRY_CODES.map(x => x[0].slice(1)).find(c => d.startsWith(c)) || d.slice(0, 2); return `+${c} ${d.slice(c.length)}`; }
+  let d = raw.replace(/\D/g, "");
+  const code = bk.cc.slice(1);
+  if (d.startsWith(code) && d.length > 9) d = d.slice(code.length); // typed the code without "+"
+  if (bk.cc === "+60") d = d.replace(/^0+/, "");                     // 012... -> 12...
+  return `${bk.cc} ${d}`;
+}
+
+// Boat to the island: same times as the Ferry Schedule tab
+const DEPART_TIMES = FERRY_SCHEDULE.depart.map(s => `${s.t} ${s.ap}`);
+
+const bkSheet = $("bookSheet");
+const bk = { mode: "ferry", id: "", start: "", end: "", dep: "", ret: "", cc: "+60", adults: 1, children: 0, addons: new Set(), name: "", phone: "", email: "", stay: "", sending: false, error: "", done: false };
+const isoDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
+const fromIso = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function bkItem() {
+  if (bk.mode === "hotel") { const p = HOTEL_PACKAGES.find(x => x.id === bk.id); return { name: p.name, img: `${p.id}-main`, pos: "50% 50%", sub: "Rooms are confirmed with the resort before any payment." }; }
+  if (bk.mode === "ground") { const t = GROUND_TRIPS.find(x => x.id === bk.id); return { name: t.name, img: t.img, pos: t.pos, sub: "Return ferry from Kuala Besut Jetty, with snorkeling trip.", price: t.price }; }
+  return { name: "Ferry Ticket", img: "about-sea", pos: "50% 50%", sub: "Return ferry: Kuala Besut Jetty ⇄ Perhentian Island." };
+}
+
+function openBooking(mode, id = "") {
+  Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set() });
+  if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(ferry.ret), ret: ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
+  if ($("pkgInfo").open) $("pkgInfo").close();
+  renderBooking();
+  bkSheet.showModal();
+}
+
+function bkPrice() {
+  if (bk.mode === "ferry") return { lines: [[`${rm(FERRY.adult)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * FERRY.adult], ...(bk.children ? [[`${rm(FERRY.child)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * FERRY.child]] : [])], total: bk.adults * FERRY.adult + bk.children * FERRY.child };
+  if (bk.mode === "ground") {
+    const p = bkItem().price;
+    if (!p) return { lines: [], total: null };
+    return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p]], total: bk.adults * p, childNote: bk.children > 0 };
+  }
+  return null;
+}
+
+function renderBooking() {
+  const it = bkItem(), hotel = bk.mode === "hotel";
+  if (bk.done) { renderBookingDone(it); return; }
+  const min = isoDate(firstBookable), max = isoDate(lastBookable);
+  const price = bkPrice();
+  const pax = (key, label, sub, minV) => `
+    <div class="bk__pax"><span>${label}${sub ? `<small>${sub}</small>` : ""}</span>
+      <span class="bk__step"><button type="button" data-bkpax="${key}" data-d="-1" aria-label="Fewer ${label.toLowerCase()}" ${bk[key] <= minV ? "disabled" : ""}>−</button>
+      <output>${bk[key]}</output>
+      <button type="button" data-bkpax="${key}" data-d="1" aria-label="More ${label.toLowerCase()}" ${bk.adults + bk.children >= FERRY.maxGuests ? "disabled" : ""}>+</button></span></div>`;
+  $("bkBody").innerHTML = `
+    <div class="bk__hero" style="background-image:url(images/photos/${it.img}.webp);background-position:${it.pos}"></div>
+    <form class="bk__in" id="bkForm" novalidate>
+      <div>
+        <p class="bk__kicker">${hotel ? "Check availability" : "Book now"}</p>
+        <h3 class="bk__title" id="bkTitle">${esc(it.name)}</h3>
+        <p class="bk__sub">${it.sub}</p>
+      </div>
+      <div class="bk__grid">
+        <label class="bk__f">${hotel ? "Check-in" : "Depart"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
+        <label class="bk__f">${hotel ? "Check-out" : "Return"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
+      </div>
+      ${hotel ? "" : `<div class="bk__f">Boat to the island (from Kuala Besut Jetty)
+        <div class="slots bk__slots--dep" role="radiogroup" aria-label="Boat to the island">${DEPART_TIMES.map(t => `<button type="button" class="slot" role="radio" data-bkdep="${t}" aria-checked="${t === bk.dep}">${t}</button>`).join("")}</div></div>
+      <div class="bk__f">Return boat (from the island)
+        <div class="slots" role="radiogroup" aria-label="Return boat time">${FERRY.returnTimes.map(t => `<button type="button" class="slot" role="radio" data-bkret="${t}" aria-checked="${t === bk.ret}">${t}</button>`).join("")}</div>
+        <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
+      <div class="bk__grid">${pax("adults", "Adults", "", 1)}${pax("children", "Children", "1–9 years", 0)}</div>
+      ${hotel ? `<div><p class="bk__lbl">Add-on activities (optional)</p><div class="bk__chips">${ADDONS.map(a => `<button type="button" class="bk__chip" data-bkaddon="${esc(a.value)}" aria-pressed="${bk.addons.has(a.value)}">${esc(a.label || a.value)}${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</button>`).join("")}</div></div>`
+        : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
+      <div><p class="bk__lbl">Your details</p>
+        <div class="bk__stack">
+          <label class="bk__f"><span class="sr-only">Full name</span><input type="text" name="name" value="${esc(bk.name)}" placeholder="Full name" autocomplete="name" required></label>
+          <div class="bk__phone">
+            <label class="bk__f"><span class="sr-only">Country code</span><select name="cc" autocomplete="tel-country-code">${COUNTRY_CODES.map(([c, n]) => `<option value="${c}"${c === bk.cc ? " selected" : ""}>${n} ${c}</option>`).join("")}</select></label>
+            <label class="bk__f"><span class="sr-only">WhatsApp number</span><input type="tel" name="phone" value="${esc(bk.phone)}" placeholder="12 345 6789" autocomplete="tel-national" inputmode="tel" required></label>
+          </div>
+          <label class="bk__f"><span class="sr-only">Email</span><input type="email" name="email" value="${esc(bk.email)}" placeholder="Email (for your invoice)" autocomplete="email" required></label>
+        </div></div>
+      ${price ? `<div class="bk__sum">
+        ${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
+        ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
+        ${price.total != null ? `<div class="t"><span>Estimated total</span><span>${rm(price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}
+      </div>` : ""}
+      ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
+      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? "Sending…" : hotel ? "Check availability" : "Confirm booking"}</button>
+      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
+    </form>`;
+}
+
+function renderBookingDone(it) {
+  const hotel = bk.mode === "hotel";
+  const when = `${fmtDate(fromIso(bk.start))}${bk.end && bk.end !== bk.start ? " – " + fmtDate(fromIso(bk.end)) : ""}`;
+  const people = `${bk.adults} adult${bk.adults > 1 ? "s" : ""}${bk.children ? `, ${bk.children} child${bk.children > 1 ? "ren" : ""}` : ""}`;
+  const steps = hotel
+    ? [["ok", "Request received", "Just now"], ["now", "Checking room availability", "Usually within 24 hours"], ["", "Invoice and 50% deposit", "Sent by email and WhatsApp"], ["", "Booking confirmed", "Receipt after the deposit"]]
+    : [["ok", "Booking received", "Just now"], ["now", "Invoice on its way", "Within 24 hours, by email and WhatsApp"], ["", "Pay the 50% deposit", "Bank transfer, details in the invoice"], ["", "Booking confirmed", "Receipt after the deposit"]];
+  const msg = [`Hi Cucimato! I just ${hotel ? "sent an availability request" : "booked"} on your website.`, `${it.name}`, `Dates: ${when}`, `Guests: ${people}`, ...(hotel ? [] : [`Boat to the island: ${bk.dep}`, `Return boat: ${bk.ret}`]), `Name: ${bk.name}`].join("\n");
+  $("bkBody").innerHTML = `
+    <div class="bk__done">
+      <div class="bk__tick" aria-hidden="true">✓</div>
+      <h3 class="bk__title" id="bkTitle" style="padding:0">${hotel ? "We're checking your room" : "Booking received"}</h3>
+      <p class="bk__sub">${esc(it.name)} · ${when} · ${people}</p>
+      <ul class="bk__tl">${steps.map(s => `<li><i class="${s[0]}">${s[0] === "ok" ? "✓" : ""}</i><div>${s[1]}<small>${s[2]}</small></div></li>`).join("")}</ul>
+      <a class="btn btn--wa" href="${waLink(msg)}" target="_blank" rel="noopener">Chat with us on WhatsApp</a>
+      <button type="button" class="btn btn--outline" data-bkclose>Done</button>
+    </div>`;
+}
+
+function bkValidate() {
+  if (!bk.start || !bk.end) return "Please choose your dates.";
+  if (bk.end < bk.start) return "Your return date is before your departure date.";
+  if (bk.mode !== "hotel" && !bk.dep) return "Please choose your boat time to the island.";
+  if (bk.mode !== "hotel" && !bk.ret) return "Please choose a return boat time.";
+  if (bk.name.trim().length < 2) return "Please enter your full name.";
+  const local = bkPhone().replace(/^\+\d+\s/, "");
+  if (local.length < 7 || local.length > 12) return "Please enter your WhatsApp number with the right country code.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bk.email.trim())) return "Please enter a valid email for your invoice.";
+  return "";
+}
+
+async function bkSubmit() {
+  bk.error = bkValidate();
+  if (bk.error) { renderBooking(); bkSheet.querySelector(".bk__err")?.scrollIntoView({ block: "center" }); return; }
+  const F = BOOKING_FORM, hotel = bk.mode === "hotel";
+  const p = new URLSearchParams();
+  p.append("emailAddress", bk.email.trim());
+  p.append(F.name, bk.name.trim());
+  p.append(F.phone, bkPhone());
+  p.append(F.service, hotel ? F.HOTEL : F.GROUND);
+  p.append(F.adults, String(bk.adults));
+  p.append(F.children, String(bk.children));
+  [["start", bk.start], ["end", bk.end]].forEach(([k, v]) => {
+    const [y, m, d] = v.split("-");
+    p.append(F[k] + "_year", y); p.append(F[k] + "_month", String(+m)); p.append(F[k] + "_day", String(+d));
+  });
+  if (hotel) {
+    p.append(F.hotel, bkItem().name);
+    bk.addons.forEach(a => p.append(F.addons, a));
+    p.append("pageHistory", "0,1");
+  } else {
+    p.append(F.ground, GROUND_FORM_NAME[bk.mode === "ferry" ? "ferry" : bk.id]);
+    p.append(F.stay, [bk.stay.trim(), `Depart boat: ${bk.dep}`, `Return boat: ${bk.ret}`].filter(Boolean).join(" | "));
+    p.append("pageHistory", "0,2");
+  }
+  bk.sending = true; renderBooking();
+  try {
+    await fetch(F.action, { method: "POST", mode: "no-cors", body: p });
+    bk.done = true;
+  } catch {
+    bk.error = `We couldn't send your ${hotel ? "request" : "booking"}. Please check your connection, or <a href="${waLink(MSG_GENERAL)}" target="_blank" rel="noopener">WhatsApp us</a>.`;
+  }
+  bk.sending = false; renderBooking();
+  bkSheet.scrollTop = 0;
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-book]");
+  if (b) { e.preventDefault(); openBooking(b.dataset.book, b.dataset.id); }
+});
+$("bkClose").addEventListener("click", () => bkSheet.close());
+bkSheet.addEventListener("click", (e) => {
+  if (e.target === bkSheet || e.target.closest("[data-bkclose]")) { bkSheet.close(); return; }
+  const pax = e.target.closest("[data-bkpax]");
+  if (pax && !pax.disabled) { bk[pax.dataset.bkpax] += +pax.dataset.d; renderBooking(); return; }
+  const dep = e.target.closest("[data-bkdep]");
+  if (dep) { bk.dep = dep.dataset.bkdep; bk.error = ""; renderBooking(); return; }
+  const ret = e.target.closest("[data-bkret]");
+  if (ret) { bk.ret = ret.dataset.bkret; bk.error = ""; renderBooking(); return; }
+  const add = e.target.closest("[data-bkaddon]");
+  if (add) { const v = add.dataset.bkaddon; bk.addons.has(v) ? bk.addons.delete(v) : bk.addons.add(v); add.setAttribute("aria-pressed", bk.addons.has(v)); }
+});
+bkSheet.addEventListener("input", (e) => {
+  const n = e.target.name;
+  if (!n) return;
+  bk[n] = e.target.value;
+  if (n === "start") {
+    const endEl = bkSheet.querySelector('[name="end"]');
+    endEl.min = bk.start;
+    if (bk.end && bk.end < bk.start) { bk.end = ""; endEl.value = ""; }
+  }
+});
+bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
