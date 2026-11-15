@@ -687,7 +687,8 @@ function renderBooking() {
         </div>
         <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
       <div class="bk__grid">${pax("adults", "Adults", "", 1)}${pax("children", "Children", "1–9 years", 0)}</div>`}
-      ${hotel ? `<div><p class="bk__lbl">Add-on activities (optional)</p><div class="bk__chips">${ADDONS.map(a => `<button type="button" class="bk__chip" data-bkaddon="${esc(a.value)}" aria-pressed="${bk.addons.has(a.value)}">${esc(a.label || a.value)}${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</button>`).join("")}</div></div>`
+      ${hotel ? `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on activities (optional)</span><strong id="bkAddonVal">${addonSummary()}</strong></summary>
+        <div class="bk__ddlist">${ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkaddon="${esc(a.value)}"${bk.addons.has(a.value) ? " checked" : ""}><span>${esc(a.label || a.value)}</span>${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</label>`).join("")}</div></details>`
         : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
       <div><p class="bk__lbl">Your details</p>
         <div class="bk__stack">
@@ -707,6 +708,12 @@ function renderBooking() {
       <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? "Sending…" : hotel ? "Check availability" : "Confirm booking"}</button>
       <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
+}
+
+// Add-on dropdown label: "Select activities", or the chosen names
+function addonSummary() {
+  const names = ADDONS.filter(a => bk.addons.has(a.value)).map(a => a.label || a.value);
+  return names.length ? names.join(", ") : "Select activities";
 }
 
 // Book a Ferry: trip details were already chosen in the ferry panel, so only show them here
@@ -796,7 +803,7 @@ bkSheet.addEventListener("click", (e) => {
   const pax = e.target.closest("[data-bkpax]");
   if (pax && !pax.disabled) { bk[pax.dataset.bkpax] += +pax.dataset.d; renderBooking(); return; }
   const add = e.target.closest("[data-bkaddon]");
-  if (add) { const v = add.dataset.bkaddon; bk.addons.has(v) ? bk.addons.delete(v) : bk.addons.add(v); add.setAttribute("aria-pressed", bk.addons.has(v)); }
+  if (add) { const v = add.dataset.bkaddon; add.checked ? bk.addons.add(v) : bk.addons.delete(v); $("bkAddonVal").textContent = addonSummary(); }
 });
 bkSheet.addEventListener("input", (e) => {
   const n = e.target.name;
