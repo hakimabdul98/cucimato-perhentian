@@ -645,3 +645,8 @@ a.fpanel__go { display: inline-flex; align-items: center; justify-content: cente
 .bk__ddopt input { width: 18px; height: 18px; accent-color: var(--ink); flex-shrink: 0; margin: 0; }
 .bk__ddopt span { flex: 1; }
 .bk__ddopt small { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+/* Typed guest numbers (ferry panel) */
+label.guest { cursor: text; gap: 12px; }
+.paxin { width: 84px; flex-shrink: 0; font: 500 16px var(--font); color: var(--ink); text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px 8px; background: #fff; }
+.paxin:focus { outline: none; border-color: var(--ink); }

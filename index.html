@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;800&family=Righteous&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=29">
+  <link rel="stylesheet" href="style.css?v=30">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
 </head>
 <body>
@@ -142,25 +142,17 @@
 
           <div class="fpop-wrap">
             <button type="button" class="ffield" id="fPaxBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fPaxPop">
-              <small>Passengers</small><strong id="fPaxVal">1 Adult</strong>
+              <small>Passengers</small><strong id="fPaxVal">Enter number</strong>
             </button>
             <div class="fpop fpop--pax" id="fPaxPop" role="dialog" aria-label="Passengers" hidden>
-              <div class="guest">
+              <label class="guest">
                 <div><strong>Adult</strong><small>10 years and above</small></div>
-                <div class="stepper">
-                  <button type="button" data-fpax="adults" data-d="-1" aria-label="Remove adult">−</button>
-                  <output id="fAdults">1</output>
-                  <button type="button" data-fpax="adults" data-d="1" aria-label="Add adult">+</button>
-                </div>
-              </div>
-              <div class="guest">
-                <div><strong>Child</strong><small>1–9 years old</small></div>
-                <div class="stepper">
-                  <button type="button" data-fpax="children" data-d="-1" aria-label="Remove child">−</button>
-                  <output id="fChildren">0</output>
-                  <button type="button" data-fpax="children" data-d="1" aria-label="Add child">+</button>
-                </div>
-              </div>
+                <input class="paxin" type="number" id="fAdultsIn" data-fpax="adults" inputmode="numeric" min="1" max="99" placeholder="e.g. 2" aria-label="Number of adults">
+              </label>
+              <label class="guest">
+                <div><strong>Child</strong><small>1–9 years old · leave empty if none</small></div>
+                <input class="paxin" type="number" id="fChildrenIn" data-fpax="children" inputmode="numeric" min="0" max="99" placeholder="0" aria-label="Number of children">
+              </label>
               <div class="fpop__foot"><button type="button" class="btn btn--sm" data-close="pax">Done</button></div>
             </div>
           </div>
@@ -305,6 +297,6 @@
   <div id="bkBody"></div>
 </dialog>
 
-<script src="script.js?v=26"></script>
+<script src="script.js?v=27"></script>
 </body>
 </html>

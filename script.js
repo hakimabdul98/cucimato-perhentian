@@ -57,9 +57,10 @@ const lastBookable = new Date(today.getFullYear(), today.getMonth() + FERRY.maxM
 const fmtDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 const shortDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const sameDay = (a, b) => a && b && a.getTime() === b.getTime();
+const paxNum = (v) => Math.min(99, Math.max(0, parseInt(String(v).replace(/\D/g, ""), 10) || 0));
 const isBookable = (d) => d >= firstBookable && d <= lastBookable && !FERRY.closedMonths.includes(d.getMonth() + 1);
 
-const ferry = { depart: null, ret: null, departTime: null, returnTime: null, adults: 1, children: 0 };
+const ferry = { depart: null, ret: null, departTime: null, returnTime: null, adults: 0, children: 0 };
 let fView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
 
 function fMonthHTML(y, m) {
@@ -106,16 +107,11 @@ function renderFerryPanel() {
   $("fDatesVal").textContent = depart ? `${shortDate(depart)} – ${ret ? shortDate(ret) : "Return?"}` : "Select dates";
   $("fDepVal").textContent = departTime || "Time";
   $("fRetVal").textContent = returnTime || "Time";
-  $("fPaxVal").textContent = `${adults} Adult${adults > 1 ? "s" : ""}${children ? `, ${children} Child${children > 1 ? "ren" : ""}` : ""}`;
-  $("fAdults").textContent = adults;
-  $("fChildren").textContent = children;
-  document.querySelector('[data-fpax="adults"][data-d="-1"]').disabled = adults <= 1;
-  document.querySelector('[data-fpax="children"][data-d="-1"]').disabled = children <= 0;
-  document.querySelectorAll('[data-fpax][data-d="1"]').forEach(b => { b.disabled = adults + children >= FERRY.maxGuests; });
+  $("fPaxVal").textContent = adults ? `${adults} Adult${adults > 1 ? "s" : ""}${children ? `, ${children} Child${children > 1 ? "ren" : ""}` : ""}` : "Enter number";
 
   const go = $("fGo");
   const total = adults * FERRY.adult + children * FERRY.child;
-  const missing = !depart ? "Select dates" : !ret ? "Select return date" : !departTime ? "Select boat time" : !returnTime ? "Select return time" : "";
+  const missing = !depart ? "Select dates" : !ret ? "Select return date" : !departTime ? "Select boat time" : !returnTime ? "Select return time" : !adults ? "Enter passengers" : "";
   if (missing) {
     go.textContent = missing;
     go.setAttribute("aria-disabled", "true");
@@ -129,7 +125,7 @@ function renderFerryPanel() {
 
 const POPS = { dates: ["fDatesPop", "fDatesBtn"], dep: ["fDepPop", "fDepBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
 // Next field still empty after dates: boat to the island, then return boat
-const nextFerryStep = () => !ferry.depart || !ferry.ret ? "dates" : !ferry.departTime ? "dep" : !ferry.returnTime ? "ret" : null;
+const nextFerryStep = () => !ferry.depart || !ferry.ret ? "dates" : !ferry.departTime ? "dep" : !ferry.returnTime ? "ret" : !ferry.adults ? "pax" : null;
 function fToggle(which, open) {
   const [popId, btnId] = POPS[which];
   const willOpen = open ?? $(popId).hidden;
@@ -137,6 +133,7 @@ function fToggle(which, open) {
   $(popId).hidden = !willOpen;
   $(btnId).setAttribute("aria-expanded", String(willOpen));
   if (willOpen && which === "dates") renderFerryCal();
+  if (willOpen && which === "pax") setTimeout(() => $("fAdultsIn").focus(), 50);
 }
 const closeAllPops = () => Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
 
@@ -169,12 +166,13 @@ $("fRetSlots").addEventListener("click", (e) => {
   if (!b) return;
   ferry.returnTime = b.dataset.ret;
   renderRetSlots(); renderFerryPanel();
-  setTimeout(() => fToggle("ret", false), 200);
+  setTimeout(() => { if (nextFerryStep() === "pax") fToggle("pax", true); else fToggle("ret", false); }, 200);
 });
-$("fPaxPop").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-fpax]");
-  if (!b || b.disabled) return;
-  ferry[b.dataset.fpax] += +b.dataset.d;
+// Passengers are typed in (easier for big groups). Empty children = 0.
+$("fPaxPop").addEventListener("input", (e) => {
+  const key = e.target.dataset.fpax;
+  if (!key) return;
+  ferry[key] = paxNum(e.target.value);
   renderFerryPanel();
 });
 // Book button: when something is missing, open the field that needs it
@@ -629,7 +627,7 @@ const timeSelect = (name, times) => `<select name="${name}" required>
 const DEPART_TIMES = FERRY.departTimes;
 
 const bkSheet = $("bookSheet");
-const bk = { mode: "ferry", id: "", start: "", end: "", dep: "", ret: "", cc: "+60", adults: 1, children: 0, addons: new Set(), name: "", phone: "", email: "", stay: "", sending: false, error: "", done: false };
+const bk = { mode: "ferry", id: "", start: "", end: "", dep: "", ret: "", cc: "+60", adults: 0, children: 0, addons: new Set(), name: "", phone: "", email: "", stay: "", sending: false, error: "", done: false };
 const isoDate = (d) => d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : "";
 const fromIso = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -658,16 +656,20 @@ function bkPrice() {
   return null;
 }
 
+function bkSumHTML(price) {
+  if (!bk.adults) return `<div class="muted"><span>Enter the number of guests to see the price</span></div>`;
+  return `${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
+    ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
+    ${price.total != null ? `<div class="t"><span>Estimated total</span><span>${rm(price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
+}
+
 function renderBooking() {
   const it = bkItem(), hotel = bk.mode === "hotel";
   if (bk.done) { renderBookingDone(it); return; }
   const min = isoDate(firstBookable), max = isoDate(lastBookable);
   const price = bkPrice();
-  const pax = (key, label, sub, minV) => `
-    <div class="bk__pax"><span>${label}${sub ? `<small>${sub}</small>` : ""}</span>
-      <span class="bk__step"><button type="button" data-bkpax="${key}" data-d="-1" aria-label="Fewer ${label.toLowerCase()}" ${bk[key] <= minV ? "disabled" : ""}>−</button>
-      <output>${bk[key]}</output>
-      <button type="button" data-bkpax="${key}" data-d="1" aria-label="More ${label.toLowerCase()}" ${bk.adults + bk.children >= FERRY.maxGuests ? "disabled" : ""}>+</button></span></div>`;
+  // Guests are typed in (easier for big groups). Empty children = 0.
+  const pax = (key, label, placeholder) => `<label class="bk__f">${label}<input type="number" name="${key}" inputmode="numeric" min="${key === "adults" ? 1 : 0}" max="99" value="${bk[key] || ""}" placeholder="${placeholder}"${key === "adults" ? " required" : ""}></label>`;
   $("bkBody").innerHTML = `
     <div class="bk__hero" style="background-image:url(images/photos/${it.img}.webp);background-position:${it.pos}"></div>
     <form class="bk__in" id="bkForm" novalidate>
@@ -686,7 +688,7 @@ function renderBooking() {
           <label class="bk__f">Return boat${timeSelect("ret", FERRY.returnTimes)}</label>
         </div>
         <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
-      <div class="bk__grid">${pax("adults", "Adults", "", 1)}${pax("children", "Children", "1–9 years", 0)}</div>`}
+      <div class="bk__grid">${pax("adults", "Adults", "e.g. 2")}${pax("children", "Children (1–9 years)", "0")}</div>`}
       ${hotel ? `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on activities (optional)</span><strong id="bkAddonVal">${addonSummary()}</strong></summary>
         <div class="bk__ddlist">${ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkaddon="${esc(a.value)}"${bk.addons.has(a.value) ? " checked" : ""}><span>${esc(a.label || a.value)}</span>${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</label>`).join("")}</div></details>`
         : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
@@ -699,11 +701,7 @@ function renderBooking() {
           </div>
           <label class="bk__f"><span class="sr-only">Email</span><input type="email" name="email" value="${esc(bk.email)}" placeholder="Email (for your invoice)" autocomplete="email" required></label>
         </div></div>
-      ${price ? `<div class="bk__sum">
-        ${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
-        ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
-        ${price.total != null ? `<div class="t"><span>Estimated total</span><span>${rm(price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}
-      </div>` : ""}
+      ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
       <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? "Sending…" : hotel ? "Check availability" : "Confirm booking"}</button>
       <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
@@ -751,6 +749,8 @@ function bkValidate() {
   if (bk.end < bk.start) return "Your return date is before your departure date.";
   if (bk.mode !== "hotel" && !bk.dep) return "Please choose your boat time to the island.";
   if (bk.mode !== "hotel" && !bk.ret) return "Please choose a return boat time.";
+  if (!bk.adults) return "Please enter the number of adults.";
+  if (bk.adults + bk.children > 99) return "For groups above 99 guests, please WhatsApp us.";
   if (bk.name.trim().length < 2) return "Please enter your full name.";
   const local = bkPhone().replace(/^\+\d+\s/, "");
   if (local.length < 7 || local.length > 12) return "Please enter your WhatsApp number with the right country code.";
@@ -800,14 +800,18 @@ document.addEventListener("click", (e) => {
 $("bkClose").addEventListener("click", () => bkSheet.close());
 bkSheet.addEventListener("click", (e) => {
   if (e.target === bkSheet || e.target.closest("[data-bkclose]")) { bkSheet.close(); return; }
-  const pax = e.target.closest("[data-bkpax]");
-  if (pax && !pax.disabled) { bk[pax.dataset.bkpax] += +pax.dataset.d; renderBooking(); return; }
   const add = e.target.closest("[data-bkaddon]");
   if (add) { const v = add.dataset.bkaddon; add.checked ? bk.addons.add(v) : bk.addons.delete(v); $("bkAddonVal").textContent = addonSummary(); }
 });
 bkSheet.addEventListener("input", (e) => {
   const n = e.target.name;
   if (!n) return;
+  if (n === "adults" || n === "children") {
+    bk[n] = paxNum(e.target.value);
+    const price = bkPrice();
+    if (price && $("bkSum")) $("bkSum").innerHTML = bkSumHTML(price);
+    return;
+  }
   bk[n] = e.target.value;
   if (n === "start") {
     const endEl = bkSheet.querySelector('[name="end"]');
