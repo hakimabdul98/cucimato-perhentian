@@ -12,7 +12,7 @@ export const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
 
 export const hitpayHeaders = (env) => ({
-  "X-BUSINESS-API-KEY": env.HITPAY_API_KEY,
+  "X-BUSINESS-API-KEY": String(env.HITPAY_API_KEY || "").trim(),  // trim: pasted keys often carry a space or newline
   "X-Requested-With": "XMLHttpRequest",
   "Content-Type": "application/x-www-form-urlencoded",
 });
