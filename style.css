@@ -135,7 +135,8 @@ p { margin: 0; }
 .cal__dow { margin-bottom: 6px; }
 .cal__dow span { text-align: center; font-size: 12px; color: var(--muted); }
 .cal__day { height: 44px; border: 0; border-radius: 50%; background: none; font: 400 15px var(--font); color: var(--ink); cursor: pointer; }
-.cal__day:hover:not(:disabled) { background: var(--soft); }
+/* hover only on real pointers, and never over the picked date (phones keep :hover after a tap) */
+@media (hover: hover) { .cal__day:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--soft); } }
 .cal__day:disabled { color: #c4c7cc; cursor: default; }
 .cal__day[aria-pressed="true"] { background: var(--ink); color: #fff; }
 .cal__day.in-range { background: var(--soft); border-radius: 0; }

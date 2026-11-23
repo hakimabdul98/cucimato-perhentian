@@ -182,7 +182,12 @@ $("fGo").addEventListener("click", (e) => {
   e.stopPropagation();
   fToggle(nextFerryStep() || "dates", true);
 });
-document.addEventListener("click", (e) => { if (!e.target.closest(".fpop-wrap") && !e.target.closest("#fGo")) closeAllPops(); });
+// composedPath() keeps the clicked element's ancestors even after the calendar re-renders
+// and removes that day button, so picking the first date no longer closes the popover.
+document.addEventListener("click", (e) => {
+  const inside = e.composedPath().some(n => n instanceof Element && (n.matches(".fpop-wrap") || n.id === "fGo"));
+  if (!inside) closeAllPops();
+});
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAllPops(); });
 
 renderDepSlots();
