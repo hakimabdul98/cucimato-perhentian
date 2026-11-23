@@ -651,3 +651,153 @@ a.fpanel__go { display: inline-flex; align-items: center; justify-content: cente
 label.guest { cursor: text; gap: 12px; }
 .paxin { width: 84px; flex-shrink: 0; font: 500 16px var(--font); color: var(--ink); text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px 8px; background: #fff; }
 .paxin:focus { outline: none; border-color: var(--ink); }
+
+/* ---------- Airport Transfer panel (same pill fields + ticks as Book a ferry) ---------- */
+.apanel__opts { display: flex; flex-wrap: wrap; gap: 4px 36px; }
+.ftrip__opt.is-off { opacity: .4; cursor: not-allowed; }
+.ftrip__opt.is-off input { cursor: not-allowed; }
+.apanel__row { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: stretch; }
+.aroute { grid-column: 1 / -1; }
+/* row 2 has 5 boxes (one-way) or 7 (return): date, time, [return date, time], transfer, passengers, book */
+.apanel__row[data-cols="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.apanel__row[data-cols="7"] { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.is-oneway .aret { display: none; }
+#aSwap:disabled { color: var(--muted); border-color: var(--line); cursor: default; background: #fff; }
+.afield { background: #fff; cursor: pointer; position: relative; }
+.afield.ffield--fixed { background: var(--soft); cursor: default; }
+.afield:not(.ffield--fixed):hover, .afield:not(.ffield--fixed):focus-within { border-color: var(--ink); }
+.aslot strong { font-family: var(--font-nav); font-weight: 600; font-size: 15px; letter-spacing: -.01em; }
+.afield select, .afield input { width: 100%; min-width: 0; padding: 0; border: 0; background: none; font: 600 15px var(--font-nav); letter-spacing: -.01em; color: var(--ink); outline: none; appearance: none; -webkit-appearance: none; cursor: pointer; text-overflow: ellipsis; }
+.afield input::placeholder { color: #a3a8ae; font-weight: 500; opacity: 1; }
+.afield.is-empty select, .afield.is-empty input { color: #a3a8ae; font-weight: 500; }
+.afield input[type="number"]::-webkit-inner-spin-button, .afield input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.afield input[type="number"] { -moz-appearance: textfield; cursor: text; }
+.afield select { padding-right: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23111418' stroke-width='1.5'/%3E%3C/svg%3E") right center / 10px 6px no-repeat; }
+.afield select option { color: var(--ink); }
+#aSwap { color: var(--ink); border-color: var(--ink); cursor: pointer; }
+#aSwap:hover { background: var(--soft); }
+#panel-airport .fpanel__note { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 20px; }
+@media (max-width: 1000px) {
+  .apanel__row[data-cols] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .apanel__row > .fpanel__go { grid-column: 1 / -1; }
+}
+@media (max-width: 680px) {
+  .apanel__opts { gap: 4px 24px; }
+  #panel-airport .fpanel__note { flex-direction: column; }
+}
+/* 5 hero tabs: on the 2-column phone grid the last tab takes the full row */
+@media (max-width: 760px) { .hero__tabs .htab:last-of-type:nth-of-type(odd) { grid-column: 1 / -1; } }
+
+/* ---------- Hero tab bar: dark pill (dribbble nav reference) ---------- */
+/* Logo circle on the left, white text tabs, the active tab is a white pill. */
+.hero__tabs { align-items: center; gap: 2px; padding: 6px 8px 6px 6px; background: #1c1c1c; border-color: #1c1c1c; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 16px 32px -14px rgba(0, 0, 0, .5); }
+.hero__tabs-logo { flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin-right: 10px; border-radius: 50%; background: #ececea; }
+.hero__tabs-logo img { width: 34px; height: auto; }
+.hero__tabs .htab { padding: 11px 18px; font-weight: 500; font-size: 15px; color: #fff; }
+.hero__tabs .htab:hover { background: rgba(255, 255, 255, .1); }
+.hero__tabs .htab[aria-selected="true"] { background: #fff; color: #111418; }
+.hero__tabs .htab:focus-visible { outline-color: #fff; }
+/* When the tabs don't fit (tablets, phones) the bar stays one row and slides sideways */
+.hero__tabs { overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.hero__tabs::-webkit-scrollbar { display: none; }
+.hero__tabs .htab { flex: none; scroll-snap-align: start; }
+.hero__tabs-logo { scroll-snap-align: start; }
+/* soft fade on the right edge hints there is more to slide */
+.hero__tabs::after { content: ""; position: sticky; right: -8px; flex: none; align-self: stretch; width: 28px; margin-left: -28px; border-radius: 0 999px 999px 0; background: linear-gradient(to right, rgba(28, 28, 28, 0), #1c1c1c 80%); pointer-events: none; }
+@media (min-width: 900px) { .hero__tabs::after { display: none; } }
+.hero__tabs::after { transition: opacity .2s; }
+.hero__tabs.is-end::after { opacity: 0; }
+@media (max-width: 560px) {
+  .hero__tabs { display: flex; width: 100%; margin-top: 12px; padding: 5px; border-radius: 999px; gap: 2px; }
+  .hero__tabs-logo { width: 40px; height: 40px; margin-right: 4px; }
+  .hero__tabs-logo img { width: 30px; }
+  .hero__tabs .htab { padding: 11px 15px; font-size: 14px; border-radius: 999px; grid-column: auto; }
+}
+
+/* ---------- Book a ferry: One-way / Return tick, split Depart + Return boxes, faded empty fields ---------- */
+.ftrip { display: flex; gap: 22px; margin: 2px 6px 12px; }
+.ftrip__opt { display: inline-flex; align-items: center; gap: 8px; font: 600 14px var(--font-nav); color: var(--ink); cursor: pointer; }
+.ftrip__opt input { appearance: none; -webkit-appearance: none; width: 20px; height: 20px; margin: 0; border: 1.5px solid #c4c7cc; border-radius: 50%; display: grid; place-items: center; cursor: pointer; transition: background .15s, border-color .15s; }
+.ftrip__opt input::after { content: ""; width: 5px; height: 9px; border: solid #fff; border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg); opacity: 0; }
+.ftrip__opt input:checked { background: var(--ink); border-color: var(--ink); }
+.ftrip__opt input:checked::after { opacity: 1; }
+.ftrip__opt input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.fdates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; min-width: 0; }
+.fdates .ffield { padding: 10px 14px; }
+.is-oneway .fdates, .is-oneway .fboats { grid-template-columns: minmax(0, 1fr); }
+.is-oneway #fReturnBtn, .is-oneway .fret-wrap { display: none; }
+#fReturnBtn[aria-expanded="true"] { border-color: var(--ink); }
+/* not filled yet: faded, so only real choices (and the fixed jetties) read dark */
+.ffield.is-empty strong { color: #a3a8ae; font-weight: 500; }
+/* Desktop: two rows so nothing is squeezed —
+   [From ⇄ To][Depart][Return] / [To island][Return boat][Passengers][Book] */
+@media (min-width: 1001px) {
+  #panel-ferry .fpanel__row { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  #panel-ferry .froute { grid-column: span 5; }
+  #panel-ferry .fdates { grid-column: span 7; }
+  #panel-ferry .fboats { grid-column: span 6; }
+  #panel-ferry .fpanel__row > .fpop-wrap:not(.fdates) { grid-column: span 3; }
+  #panel-ferry .fpanel__go { grid-column: span 3; }
+  #panel-ferry .froute .ffield strong { font-size: 15px; }
+}
+/* Swap button between From and To: active only for one-way */
+button.froute__icon { padding: 0; font: inherit; background: #fff; color: var(--muted); cursor: default; }
+button.froute__icon:not(:disabled) { color: var(--ink); border-color: var(--ink); cursor: pointer; transition: transform .25s; }
+button.froute__icon:not(:disabled):hover { background: var(--soft); }
+button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
+@media (max-width: 680px) { button.froute__icon:not(:disabled):active { transform: rotate(270deg); } }
+
+/* Note under the ferry panel: price left, e-ticket + time-change help right */
+#panel-ferry .fpanel__note { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 20px; }
+.fnote__price { color: var(--ink); font-weight: 500; }
+.fnote__perks { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+.fnote__perk { display: inline-block; }
+.fnote__perk i { display: inline-grid; place-items: center; vertical-align: -3px; margin-right: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); color: #fff; font-style: normal; font-size: 9px; }
+.fnote__perk a { color: var(--ink); font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 680px) {
+  #panel-ferry .fpanel__note { flex-direction: column; align-items: flex-start; }
+  .fnote__perks { flex-direction: column; gap: 6px; }
+}
+
+/* Tick before "Book online & get your e-ticket": drawn in CSS so it sits dead centre */
+.fnote__perk--tick { display: inline-flex; align-items: center; gap: 7px; }
+.fnote__perk--tick i { position: relative; flex: none; width: 16px; height: 16px; margin: 0; border-radius: 50%; background: var(--ink); vertical-align: 0; }
+.fnote__perk--tick i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 3.5px; height: 7px; border: solid #fff; border-width: 0 1.6px 1.6px 0; transform: translate(-50%, -62%) rotate(45deg); }
+
+/* Floating WhatsApp: green pill with "Ask us" label + soft pulse so people notice it */
+.wa-float { width: auto; height: 52px; padding: 0 20px 0 14px; gap: 8px; display: inline-flex; align-items: center; border-radius: 999px; font: 600 15px var(--font-nav); letter-spacing: -.01em; color: #fff; text-decoration: none; transition: transform .2s, box-shadow .2s; }
+.wa-float:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0, 0, 0, .2); }
+.wa-float::before { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 0 0 0 rgba(37, 211, 102, .55); animation: waPulse 2.6s ease-out infinite; pointer-events: none; }
+@keyframes waPulse { 0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, .55); } 70%, 100% { box-shadow: 0 0 0 14px rgba(37, 211, 102, 0); } }
+.wa-float__label { white-space: nowrap; }
+@media (max-width: 560px) { .wa-float { height: 48px; right: 16px; bottom: 16px; padding: 0 16px 0 12px; font-size: 14px; } .wa-float svg { width: 24px; height: 24px; } }
+@media (prefers-reduced-motion: reduce) { .wa-float::before { animation: none; } }
+#panel-airport .fpanel__go { padding: 0 16px; }
+#panel-airport .afield { padding-left: 16px; padding-right: 14px; }
+/* Airport: date + time groups (same boxes as Book a ferry) take two columns each on a return trip */
+.apanel__row[data-cols="7"] > .fdates, .apanel__row[data-cols="7"] > .fboats { grid-column: span 2; }
+@media (max-width: 1000px) { .apanel__row > .fdates, .apanel__row > .fboats { grid-column: 1 / -1; } }
+/* return row: a little more room for "Estimated Pickup Time"; labels stay on one line */
+@media (min-width: 1001px) {
+  .apanel__row[data-cols="7"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, .95fr) minmax(0, .8fr) minmax(0, 1fr); }
+}
+#panel-airport .ffield small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 560px) { #panel-airport .fboats { grid-template-columns: minmax(0, 1fr); } }
+
+/* Airport Transfer uses the exact Book a ferry grid on desktop:
+   [Pick-up ⇄ Drop-off][Pick-up date | Return date] / [Pickup time | Return pick-up][Transfer][Passengers][Book] */
+@media (min-width: 1001px) {
+  #panel-airport .apanel__row,
+  #panel-airport .apanel__row[data-cols] { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  #panel-airport .aroute { grid-column: span 5; }
+  #panel-airport .apanel__row > .fdates { grid-column: span 7; }
+  #panel-airport .apanel__row > .fboats { grid-column: span 6; }
+  #panel-airport .apanel__row > .afield,
+  #panel-airport .apanel__row > .fpanel__go { grid-column: span 2; }
+  #panel-airport .aroute .ffield strong, #panel-airport .aroute select { font-size: 15px; }
+}
+
+/* Note under both booking panels: three lines stacked, flush to the left edge, on every screen size
+   (price · ✓ perk · special request), like the phone layout */
+#panel-ferry .fpanel__note, #panel-airport .fpanel__note { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 6px; }
+#panel-ferry .fnote__perks, #panel-airport .fnote__perks { flex-direction: column; align-items: flex-start; gap: 6px; }

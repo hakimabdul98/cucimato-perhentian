@@ -15,12 +15,12 @@ const $ = (id) => document.getElementById(id);
 const heroTabs = [...document.querySelectorAll(".htab")];
 function selectTab(name) {
   heroTabs.forEach(t => t.setAttribute("aria-selected", String(t.dataset.tab === name)));
-  ["ferry", "hotel", "ground", "schedule"].forEach(p => { $("panel-" + p).hidden = p !== name; });
+  ["ferry", "airport", "hotel", "ground", "schedule"].forEach(p => { $("panel-" + p).hidden = p !== name; });
 }
 heroTabs.forEach(tab => tab.addEventListener("click", () => selectTab(tab.dataset.tab)));
 
 // Header links open the matching tab and scroll to it
-const TAB_HASH = { ferry: "#book-ferry", hotel: "#hotel-packages", ground: "#ground-packages", schedule: "#ferry-schedule" };
+const TAB_HASH = { ferry: "#book-ferry", airport: "#airport-transfer", hotel: "#hotel-packages", ground: "#ground-packages", schedule: "#ferry-schedule" };
 function openTabFromLink(name) {
   selectTab(name);
   const bar = document.querySelector(".hero__tabs");
@@ -49,6 +49,7 @@ const FERRY = {
   maxMonthsAhead: 6,
   closedMonths: [],                         // e.g. [11, 12, 1, 2] to block monsoon months
   maxGuests: 30,
+  oneWay: { adult: 40, child: 20 },         // one-way price (either direction); null = "Price on request"
 };
 
 const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -60,7 +61,13 @@ const sameDay = (a, b) => a && b && a.getTime() === b.getTime();
 const paxNum = (v) => Math.min(99, Math.max(0, parseInt(String(v).replace(/\D/g, ""), 10) || 0));
 const isBookable = (d) => d >= firstBookable && d <= lastBookable && !FERRY.closedMonths.includes(d.getMonth() + 1);
 
-const ferry = { depart: null, ret: null, departTime: null, returnTime: null, adults: 0, children: 0 };
+const FERRY_REQUEST_MSG = "Hi Cucimato! I have a special request for my ferry trip (e.g. private boat, different time).\nDate: \nNumber of passengers: \nMy request: ";
+const ferry = { trip: "return", dir: "toIsland", picking: "depart", depart: null, ret: null, departTime: null, returnTime: null, adults: 0, children: 0 };
+const isOneWay = () => ferry.trip === "oneway";
+// One-way can go either way; a return trip always starts at Kuala Besut Jetty
+const toJetty = () => isOneWay() && ferry.dir === "toJetty";
+const ROUTE = { toIsland: ["Kuala Besut Jetty", "Perhentian Island"], toJetty: ["Perhentian Island", "Kuala Besut Jetty"] };
+const firstBoatTimes = () => toJetty() ? FERRY.returnTimes : FERRY.departTimes;
 let fView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
 
 function fMonthHTML(y, m) {
@@ -70,8 +77,8 @@ function fMonthHTML(y, m) {
   for (let d = 1; d <= days; d++) {
     const date = new Date(y, m, d);
     const isStart = sameDay(date, ferry.depart), isEnd = sameDay(date, ferry.ret);
-    const inRange = ferry.depart && ferry.ret && date > ferry.depart && date < ferry.ret;
-    const beforeDepart = ferry.depart && !ferry.ret && date < ferry.depart;
+    const inRange = !isOneWay() && ferry.depart && ferry.ret && date > ferry.depart && date < ferry.ret;
+    const beforeDepart = ferry.picking === "return" && ferry.depart && date < ferry.depart;
     html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}" data-fday="${y}-${m}-${d}"
       aria-label="${fmtDate(date)}${isStart ? " (depart)" : isEnd ? " (return)" : ""}"
       aria-pressed="${isStart || isEnd}" ${isBookable(date) && !beforeDepart ? "" : "disabled"}>${d}</button>`;
@@ -88,12 +95,12 @@ function renderFerryCal() {
   $("fCalMonths").innerHTML = fMonthHTML(y, m) + fMonthHTML(second.getFullYear(), second.getMonth());
   $("fCalPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
   $("fCalNext").disabled = second.getFullYear() === lastBookable.getFullYear() && second.getMonth() === lastBookable.getMonth();
-  $("fCalHint").textContent = !ferry.depart ? "Select your depart date"
-    : !ferry.ret ? "Now select your return date" : `${shortDate(ferry.depart)} → ${shortDate(ferry.ret)}`;
+  $("fCalHint").textContent = isOneWay() ? "Select your depart date"
+    : ferry.picking === "return" ? "Now select your return date" : "Select your depart date";
 }
 
 function renderDepSlots() {
-  $("fDepSlots").innerHTML = FERRY.departTimes.map(t =>
+  $("fDepSlots").innerHTML = firstBoatTimes().map(t =>
     `<button type="button" class="slot" role="radio" data-dep="${t}" aria-checked="${t === ferry.departTime}">${t}</button>`).join("");
 }
 
@@ -104,40 +111,82 @@ function renderRetSlots() {
 
 function renderFerryPanel() {
   const { depart, ret, departTime, returnTime, adults, children } = ferry;
-  $("fDatesVal").textContent = depart ? `${shortDate(depart)} – ${ret ? shortDate(ret) : "Return?"}` : "Select dates";
-  $("fDepVal").textContent = departTime || "Time";
-  $("fRetVal").textContent = returnTime || "Time";
-  $("fPaxVal").textContent = adults ? `${adults} Adult${adults > 1 ? "s" : ""}${children ? `, ${children} Child${children > 1 ? "ren" : ""}` : ""}` : "Enter number";
+  const oneWay = isOneWay();
+  $("panel-ferry").classList.toggle("is-oneway", oneWay);
+  const [from, to] = ROUTE[toJetty() ? "toJetty" : "toIsland"];
+  $("fFromVal").textContent = from; $("fToVal").textContent = to;
+  $("fSwap").disabled = !oneWay;
+  $("fDepLbl").textContent = toJetty() ? "To jetty" : "To island";
+  $("fDepPopLbl").textContent = `${from} → ${to}`;
+  // Note under the panel: trip type + price (left), e-ticket and time-change help (right)
+  const priceText = oneWay
+    ? (FERRY.oneWay.adult == null ? `One-way · ${from} → ${to} · Price on request` : `One-way · Adult ${rm(FERRY.oneWay.adult)}${FERRY.oneWay.child != null ? ` · Child ${rm(FERRY.oneWay.child)}` : ""}`)
+    : `Return trip · Adult ${rm(FERRY.adult)} · Child ${rm(FERRY.child)}`;
+  $("panel-ferry").querySelector(".fpanel__note").innerHTML = `<span class="fnote__price">${priceText}</span>
+    <span class="fnote__perks">
+      <span class="fnote__perk fnote__perk--tick"><i aria-hidden="true"></i>Book online &amp; get your e-ticket</span>
+      <span class="fnote__perk">Special request or private boat? <a href="${waLink(FERRY_REQUEST_MSG)}" target="_blank" rel="noopener">Chat with us on WhatsApp</a></span>
+    </span>`;
+  // empty fields show faded text; From/To are fixed and stay dark
+  const show = (btn, val, value, empty) => { $(val).textContent = value || empty; $(btn).classList.toggle("is-empty", !value); };
+  show("fDepartBtn", "fDepartVal", depart && shortDate(depart), "Select date");
+  show("fReturnBtn", "fReturnVal", ret && shortDate(ret), "Select date");
+  show("fDepBtn", "fDepVal", departTime, "Time");
+  show("fRetBtn", "fRetVal", returnTime, "Time");
+  show("fPaxBtn", "fPaxVal", adults && `${adults} Adult${adults > 1 ? "s" : ""}${children ? `, ${children} Child${children > 1 ? "ren" : ""}` : ""}`, "Enter number");
 
   const go = $("fGo");
-  const total = adults * FERRY.adult + children * FERRY.child;
-  const missing = !depart ? "Select dates" : !ret ? "Select return date" : !departTime ? "Select boat time" : !returnTime ? "Select return time" : !adults ? "Enter passengers" : "";
+  const price = oneWay ? FERRY.oneWay : FERRY;
+  const total = price.adult == null ? null : adults * price.adult + children * (price.child ?? 0);
+  const missing = !depart ? "Select date" : !oneWay && !ret ? "Select return date" : !departTime ? "Select boat time" : !oneWay && !returnTime ? "Select return time" : !adults ? "Enter passengers" : "";
   if (missing) {
     go.textContent = missing;
     go.setAttribute("aria-disabled", "true");
     go.removeAttribute("href");
     return;
   }
-  go.textContent = `Book · ${rm(total)}`;
+  go.textContent = total == null ? "Book now" : `Book · ${rm(total)}`;
   go.removeAttribute("aria-disabled");
   go.href = "#book"; // opens the booking sheet (see "Booking sheet" below)
 }
 
-const POPS = { dates: ["fDatesPop", "fDatesBtn"], dep: ["fDepPop", "fDepBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
+const POPS = { dates: ["fDatesPop", "fDepartBtn"], dep: ["fDepPop", "fDepBtn"], ret: ["fRetPop", "fRetBtn"], pax: ["fPaxPop", "fPaxBtn"] };
+const dateBtn = () => ferry.picking === "return" ? "fReturnBtn" : "fDepartBtn";
 // Next field still empty after dates: boat to the island, then return boat
-const nextFerryStep = () => !ferry.depart || !ferry.ret ? "dates" : !ferry.departTime ? "dep" : !ferry.returnTime ? "ret" : !ferry.adults ? "pax" : null;
+const nextFerryStep = () => !ferry.depart || (!isOneWay() && !ferry.ret) ? "dates" : !ferry.departTime ? "dep" : !isOneWay() && !ferry.returnTime ? "ret" : !ferry.adults ? "pax" : null;
 function fToggle(which, open) {
-  const [popId, btnId] = POPS[which];
+  const [popId] = POPS[which];
+  const btnId = which === "dates" ? dateBtn() : POPS[which][1];
   const willOpen = open ?? $(popId).hidden;
-  Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
+  closeAllPops();
   $(popId).hidden = !willOpen;
   $(btnId).setAttribute("aria-expanded", String(willOpen));
   if (willOpen && which === "dates") renderFerryCal();
   if (willOpen && which === "pax") setTimeout(() => $("fAdultsIn").focus(), 50);
 }
-const closeAllPops = () => Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
+function closeAllPops() {
+  Object.values(POPS).forEach(([p, b]) => { $(p).hidden = true; $(b).setAttribute("aria-expanded", "false"); });
+  $("fReturnBtn").setAttribute("aria-expanded", "false");
+}
 
-$("fDatesBtn").addEventListener("click", () => fToggle("dates"));
+// Depart and Return are separate boxes that share one calendar
+$("fDepartBtn").addEventListener("click", () => { const open = $("fDatesPop").hidden || ferry.picking !== "depart"; ferry.picking = "depart"; fToggle("dates", open); });
+$("fReturnBtn").addEventListener("click", () => { const want = ferry.depart ? "return" : "depart"; const open = $("fDatesPop").hidden || ferry.picking !== want; ferry.picking = want; fToggle("dates", open); });
+// Swap direction (one-way only): Kuala Besut -> island, or island -> Kuala Besut
+$("fSwap").addEventListener("click", () => {
+  if (!isOneWay()) return;
+  ferry.dir = ferry.dir === "toIsland" ? "toJetty" : "toIsland";
+  if (!firstBoatTimes().includes(ferry.departTime)) ferry.departTime = null; // times differ per direction
+  closeAllPops(); renderDepSlots(); renderFerryPanel();
+});
+// One-way / Return tick
+document.querySelectorAll('input[name="ftrip"]').forEach(r => r.addEventListener("change", () => {
+  ferry.trip = r.value;
+  if (isOneWay()) { ferry.ret = null; ferry.returnTime = null; renderRetSlots(); }
+  else if (ferry.dir !== "toIsland") { ferry.dir = "toIsland"; ferry.departTime = null; renderDepSlots(); }
+  ferry.picking = "depart";
+  closeAllPops(); renderFerryPanel();
+}));
 $("fDepBtn").addEventListener("click", () => fToggle("dep"));
 $("fRetBtn").addEventListener("click", () => fToggle("ret"));
 $("fPaxBtn").addEventListener("click", () => fToggle("pax"));
@@ -149,10 +198,17 @@ $("fCalMonths").addEventListener("click", (e) => {
   if (!b || b.disabled) return;
   const [y, m, d] = b.dataset.fday.split("-").map(Number);
   const date = new Date(y, m, d);
-  if (!ferry.depart || ferry.ret) { ferry.depart = date; ferry.ret = null; }
-  else ferry.ret = date; // same day allowed (day trip)
+  let done;
+  if (ferry.picking === "return") { ferry.ret = date; ferry.picking = "depart"; done = true; } // same day allowed (day trip)
+  else {
+    ferry.depart = date;
+    if (ferry.ret && ferry.ret < date) ferry.ret = null;
+    done = isOneWay() || Boolean(ferry.ret);
+    if (!done) ferry.picking = "return";
+  }
   renderFerryCal(); renderFerryPanel();
-  if (ferry.ret) setTimeout(() => { const n = nextFerryStep(); fToggle(n || "dates", !!n); }, 250); // next: boat times
+  if (done) setTimeout(() => { const n = nextFerryStep(); n === "dates" ? fToggle("dates", true) : n ? fToggle(n, true) : closeAllPops(); }, 250); // next: boat times
+  else { $("fDepartBtn").setAttribute("aria-expanded", "false"); $("fReturnBtn").setAttribute("aria-expanded", "true"); }
 });
 $("fDepSlots").addEventListener("click", (e) => {
   const b = e.target.closest("[data-dep]");
@@ -180,7 +236,9 @@ $("fGo").addEventListener("click", (e) => {
   e.preventDefault();
   if ($("fGo").getAttribute("aria-disabled") !== "true") { openBooking("ferry"); return; }
   e.stopPropagation();
-  fToggle(nextFerryStep() || "dates", true);
+  const step = nextFerryStep() || "dates";
+  if (step === "dates") ferry.picking = ferry.depart && !isOneWay() ? "return" : "depart";
+  fToggle(step, true);
 });
 // composedPath() keeps the clicked element's ancestors even after the calendar re-renders
 // and removes that day button, so picking the first date no longer closes the popover.
@@ -640,18 +698,26 @@ const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<":
 function bkItem() {
   if (bk.mode === "hotel") { const p = HOTEL_PACKAGES.find(x => x.id === bk.id); return { name: p.name, img: `${p.id}-main`, pos: "50% 50%", sub: "Rooms are confirmed with the resort before any payment." }; }
   if (bk.mode === "ground") { const t = GROUND_TRIPS.find(x => x.id === bk.id); return { name: t.name, img: t.img, pos: t.pos, sub: "Return ferry from Kuala Besut Jetty, with snorkeling trip.", price: t.price }; }
+  if (bk.oneway) return { name: "Ferry Ticket (One-way)", img: "about-sea", pos: "50% 50%", sub: `One-way ferry: ${ROUTE[bk.toJetty ? "toJetty" : "toIsland"].join(" → ")}.` };
   return { name: "Ferry Ticket", img: "about-sea", pos: "50% 50%", sub: "Return ferry: Kuala Besut Jetty ⇄ Perhentian Island." };
 }
 
 function openBooking(mode, id = "") {
   Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set() });
-  if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(ferry.ret), dep: ferry.departTime || "", ret: ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
+  bk.oneway = mode === "ferry" && isOneWay();
+  bk.toJetty = mode === "ferry" && toJetty();
+  if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(bk.oneway ? ferry.depart : ferry.ret), dep: ferry.departTime || "", ret: bk.oneway ? "" : ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
   if ($("pkgInfo").open) $("pkgInfo").close();
   renderBooking();
   bkSheet.showModal();
 }
 
 function bkPrice() {
+  if (bk.mode === "ferry" && bk.oneway) {
+    const o = FERRY.oneWay;
+    if (o.adult == null) return { lines: [], total: null };
+    return { lines: [[`${rm(o.adult)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * o.adult], ...(bk.children && o.child != null ? [[`${rm(o.child)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * o.child]] : [])], total: bk.adults * o.adult + bk.children * (o.child ?? 0) };
+  }
   if (bk.mode === "ferry") return { lines: [[`${rm(FERRY.adult)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * FERRY.adult], ...(bk.children ? [[`${rm(FERRY.child)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * FERRY.child]] : [])], total: bk.adults * FERRY.adult + bk.children * FERRY.child };
   if (bk.mode === "ground") {
     const p = bkItem().price;
@@ -724,7 +790,7 @@ function ferryTripSummary() {
   const people = `${bk.adults} adult${bk.adults > 1 ? "s" : ""}${bk.children ? `, ${bk.children} child${bk.children > 1 ? "ren" : ""}` : ""}`;
   return `<div class="bk__trip">
     <div><small>Depart</small><strong>${shortDate(fromIso(bk.start))} · ${bk.dep}</strong></div>
-    <div><small>Return</small><strong>${shortDate(fromIso(bk.end))} · ${bk.ret}</strong></div>
+    ${bk.oneway ? `<div><small>Trip</small><strong>One-way, ${bk.toJetty ? "to Kuala Besut" : "to the island"}</strong></div>` : `<div><small>Return</small><strong>${shortDate(fromIso(bk.end))} · ${bk.ret}</strong></div>`}
     <div><small>Passengers</small><strong>${people}</strong></div>
     <button type="button" class="bk__change" data-bkclose>Change</button>
   </div>`;
@@ -737,7 +803,7 @@ function renderBookingDone(it) {
   const steps = hotel
     ? [["ok", "Request received", "Just now"], ["now", "Checking room availability", "Usually within 24 hours"], ["", "Invoice and 50% deposit", "Sent by email and WhatsApp"], ["", "Booking confirmed", "Receipt after the deposit"]]
     : [["ok", "Booking received", "Just now"], ["now", "Invoice on its way", "Within 24 hours, by email and WhatsApp"], ["", "Pay the 50% deposit", "Bank transfer, details in the invoice"], ["", "Booking confirmed", "Receipt after the deposit"]];
-  const msg = [`Hi Cucimato! I just ${hotel ? "sent an availability request" : "booked"} on your website.`, `${it.name}`, `Dates: ${when}`, `Guests: ${people}`, ...(hotel ? [] : [`Boat to the island: ${bk.dep}`, `Return boat: ${bk.ret}`]), `Name: ${bk.name}`].join("\n");
+  const msg = [`Hi Cucimato! I just ${hotel ? "sent an availability request" : "booked"} on your website.`, `${it.name}`, `Dates: ${when}`, `Guests: ${people}`, ...(hotel ? [] : bk.toJetty ? ["One-way to Kuala Besut Jetty", `Boat from the island: ${bk.dep}`] : [`Boat to the island: ${bk.dep}`, ...(bk.oneway ? ["One-way"] : [`Return boat: ${bk.ret}`])]), `Name: ${bk.name}`].join("\n");
   $("bkBody").innerHTML = `
     <div class="bk__done">
       <div class="bk__tick" aria-hidden="true">✓</div>
@@ -752,8 +818,8 @@ function renderBookingDone(it) {
 function bkValidate() {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
-  if (bk.mode !== "hotel" && !bk.dep) return "Please choose your boat time to the island.";
-  if (bk.mode !== "hotel" && !bk.ret) return "Please choose a return boat time.";
+  if (bk.mode !== "hotel" && !bk.dep) return bk.toJetty ? "Please choose your boat time from the island." : "Please choose your boat time to the island.";
+  if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose a return boat time.";
   if (!bk.adults) return "Please enter the number of adults.";
   if (bk.adults + bk.children > 99) return "For groups above 99 guests, please WhatsApp us.";
   if (bk.name.trim().length < 2) return "Please enter your full name.";
@@ -784,7 +850,8 @@ async function bkSubmit() {
     p.append("pageHistory", "0,1");
   } else {
     p.append(F.ground, GROUND_FORM_NAME[bk.mode === "ferry" ? "ferry" : bk.id]);
-    p.append(F.stay, [bk.stay.trim(), `Depart boat: ${bk.dep}`, `Return boat: ${bk.ret}`].filter(Boolean).join(" | "));
+    const oneWayTag = bk.oneway ? (bk.toJetty ? "ONE-WAY Perhentian → Kuala Besut" : "ONE-WAY Kuala Besut → Perhentian") : "";
+    p.append(F.stay, [bk.stay.trim(), oneWayTag, `${bk.toJetty ? "Boat from island" : "Depart boat"}: ${bk.dep}`, bk.oneway ? "" : `Return boat: ${bk.ret}`].filter(Boolean).join(" | "));
     p.append("pageHistory", "0,2");
   }
   bk.sending = true; renderBooking();
@@ -825,3 +892,237 @@ bkSheet.addEventListener("input", (e) => {
   }
 });
 bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
+
+/* =========================================================
+   Airport Transfer — Kota Bharu (KBR) / Kuala Terengganu (TGG) <-> Kuala Besut Jetty
+   price: RM per person, per way, per service. null = not set yet -> "Price on request".
+   Return = 2 ways. Kuala Terengganu is private only. Booking is sent to WhatsApp.
+   ========================================================= */
+const AIRPORT_REQUEST_MSG = "Hi Cucimato! I have a special request for my airport transfer.\nDate: \nNumber of passengers: \nMy request: ";
+const AIRPORT = {
+  jetty: "Kuala Besut Jetty",
+  airports: [
+    { code: "KBR", short: "Kota Bharu (KBR)", name: "Kota Bharu Airport (KBR)", services: ["private", "shared"], price: { private: null, shared: 35 } }, // private: price on WhatsApp for now
+    { code: "TGG", short: "Kuala Terengganu (TGG)", name: "Kuala Terengganu Airport (TGG)", services: ["private"], price: { private: null } },
+  ],
+  serviceName: { private: "Private", shared: "Shared" },
+  // Pick-up at the airport: estimated time, hourly. Flights should land within this window.
+  airportTimes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  flightWindow: "7am and 4pm",
+  // Pick-up at Kuala Besut Jetty (one-way to the airport, and the return leg)
+  jettyTimes: ["9:00 AM", "1:00 PM", "5:00 PM"],
+  maxPax: 30,
+};
+
+(() => {
+  if (!$("aForm")) return;
+  const st = { trip: "oneway", type: "", airport: "", fromAirport: true, date: null, ret: null, picking: "date", time: null, retTime: null };
+  const typeSel = $("aType"), pax = $("aPax"), go = $("aGo"), note = $("aNote");
+  const oneway = () => st.trip === "oneway";
+  const ap = () => AIRPORT.airports.find(a => a.code === st.airport);
+  let view = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
+
+  // ---------- route: the airport side is a dropdown ("Choose airport"), the jetty side is fixed ----------
+  const airportSelect = () => `<select id="aAirport" aria-label="Airport"><option value="" disabled${st.airport ? "" : " selected"}>Choose airport</option>${AIRPORT.airports.map(a => `<option value="${a.code}"${a.code === st.airport ? " selected" : ""}>${a.short}</option>`).join("")}</select>`;
+  const jettyText = `<strong>${AIRPORT.jetty}</strong>`;
+  function drawRoute() {
+    $("aPickSlot").innerHTML = st.fromAirport ? airportSelect() : jettyText;
+    $("aDropSlot").innerHTML = st.fromAirport ? jettyText : airportSelect();
+    $("aPickBox").classList.toggle("ffield--fixed", !st.fromAirport);
+    $("aDropBox").classList.toggle("ffield--fixed", st.fromAirport);
+    $("aAirport").addEventListener("change", (e) => { st.airport = e.target.value; drawTypes(); update(); });
+  }
+
+  // ---------- transfer dropdown: only what the chosen airport offers (Kuala Terengganu = private) ----------
+  function drawTypes() {
+    const a = ap();
+    const list = a ? a.services : ["private", "shared"];
+    if (!list.includes(st.type)) st.type = list.length === 1 ? list[0] : "";
+    typeSel.innerHTML = `<option value="" disabled${st.type ? "" : " selected"}>Select type</option>` +
+      list.map(t => `<option value="${t}"${t === st.type ? " selected" : ""}>${AIRPORT.serviceName[t]}${a && list.length === 1 ? " (only option)" : ""}</option>`).join("");
+  }
+
+  // ---------- times: same time boxes as Book a ferry ----------
+  const firstTimes = () => st.fromAirport ? AIRPORT.airportTimes : AIRPORT.jettyTimes;
+  const slotHTML = (list, chosen, key) => list.map(t => `<button type="button" class="slot" role="radio" data-${key}="${t}" aria-checked="${t === chosen}">${t}</button>`).join("");
+  function drawSlots() {
+    if (!firstTimes().includes(st.time)) st.time = null;
+    $("aTimeSlots").innerHTML = slotHTML(firstTimes(), st.time, "atime");
+    $("aRetTimeSlots").innerHTML = slotHTML(AIRPORT.jettyTimes, st.retTime, "aret");
+  }
+
+  // ---------- calendar: same look and flow as Book a ferry (pick-up date, then return date) ----------
+  function monthHTML(y, m) {
+    const lead = (new Date(y, m, 1).getDay() + 6) % 7;
+    const days = new Date(y, m + 1, 0).getDate();
+    let html = "<span></span>".repeat(lead);
+    for (let d = 1; d <= days; d++) {
+      const date = new Date(y, m, d);
+      const isStart = sameDay(date, st.date), isEnd = sameDay(date, st.ret);
+      const inRange = !oneway() && st.date && st.ret && date > st.date && date < st.ret;
+      const before = st.picking === "ret" && st.date && date < st.date;
+      html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}" data-aday="${y}-${m}-${d}"
+        aria-label="${fmtDate(date)}${isStart ? " (pick-up)" : isEnd ? " (return)" : ""}"
+        aria-pressed="${isStart || isEnd}" ${isBookable(date) && !before ? "" : "disabled"}>${d}</button>`;
+    }
+    const title = new Date(y, m, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    return `<div class="fcal__month"><p>${title}</p>
+      <div class="cal__grid cal__dow" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
+      <div class="cal__grid">${html}</div></div>`;
+  }
+  function drawCal() {
+    const y = view.getFullYear(), m = view.getMonth(), second = new Date(y, m + 1, 1);
+    $("aCalMonths").innerHTML = monthHTML(y, m) + monthHTML(second.getFullYear(), second.getMonth());
+    $("aCalPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
+    $("aCalNext").disabled = second.getFullYear() === lastBookable.getFullYear() && second.getMonth() === lastBookable.getMonth();
+    $("aCalHint").textContent = st.picking === "ret" ? "Now select your return date" : "Select your pick-up date";
+  }
+
+  // ---------- popovers ----------
+  const POPS = { dates: "aDatesPop", time: "aTimePop", ret: "aRetTimePop" };
+  const BTNS = ["aDateBtn", "aRetDateBtn", "aTimeBtn", "aRetTimeBtn"];
+  function closeAll() { Object.values(POPS).forEach(p => { $(p).hidden = true; }); BTNS.forEach(b => $(b).setAttribute("aria-expanded", "false")); }
+  function open(which) {
+    closeAll();
+    $(POPS[which]).hidden = false;
+    const btn = which === "dates" ? (st.picking === "ret" ? "aRetDateBtn" : "aDateBtn") : which === "time" ? "aTimeBtn" : "aRetTimeBtn";
+    $(btn).setAttribute("aria-expanded", "true");
+    if (which === "dates") drawCal();
+  }
+  const nextStep = () => !st.date || (!oneway() && !st.ret) ? "dates" : !st.time ? "time" : !oneway() && !st.retTime ? "ret" : null;
+
+  function update() {
+    const a = ap(), ow = oneway();
+    $("panel-airport").classList.toggle("is-oneway", ow);
+    $("panel-airport").querySelector(".apanel__row").dataset.cols = ow ? "5" : "7";
+    $("aSwap").disabled = !ow; // return trips always start at the airport
+
+    const [pick, drop] = a ? (st.fromAirport ? [a.name, AIRPORT.jetty] : [AIRPORT.jetty, a.name]) : (st.fromAirport ? ["Airport", AIRPORT.jetty] : [AIRPORT.jetty, "Airport"]);
+    $("aTimeLabel").textContent = st.fromAirport ? "Estimated Pickup Time" : "Pick-up time";
+    $("aRetTimeLabel").textContent = "Return pick-up";
+    $("aTimePopLbl").textContent = `Pick-up at ${pick}`;
+    $("aRetTimePopLbl").textContent = `Pick-up at ${AIRPORT.jetty}`;
+
+    const show = (btn, val, value, empty) => { $(val).textContent = value || empty; $(btn).classList.toggle("is-empty", !value); };
+    show("aDateBtn", "aDateVal", st.date && shortDate(st.date), "Select date");
+    show("aRetDateBtn", "aRetDateVal", st.ret && shortDate(st.ret), "Select date");
+    show("aTimeBtn", "aTimeVal", st.time, "Time");
+    show("aRetTimeBtn", "aRetTimeVal", st.retTime, "Time");
+    $("aAirport").closest(".afield").classList.toggle("is-empty", !st.airport);
+    [pax, typeSel].forEach(el => el.closest(".afield").classList.toggle("is-empty", !el.value));
+
+    const n = Math.min(AIRPORT.maxPax, paxNum(pax.value));
+    const one = a ? a.price[st.type] : null;
+    const total = one == null || !n ? null : one * n * (ow ? 1 : 2);
+    const svc = AIRPORT.serviceName[st.type] || "";
+    // Same format as Book a ferry (left): trip type · price. Lowest adult price per way, e.g. "Adult from RM35"
+    const prices = (a ? [a] : AIRPORT.airports).flatMap(x => Object.values(x.price)).filter(p => p != null);
+    const from = prices.length ? Math.min(...prices) : null;
+    note.innerHTML = `<span class="fnote__price">${ow ? "One-way" : "Return"} · ${from == null ? "Price on request" : `Adult from ${rm(from)} per way`}</span>
+      <span class="fnote__perks">
+        <span class="fnote__perk fnote__perk--tick"><i aria-hidden="true"></i>Please book a flight that lands between ${AIRPORT.flightWindow}</span>
+        <span class="fnote__perk">Special request? <a href="${waLink(AIRPORT_REQUEST_MSG)}" target="_blank" rel="noopener">Chat with us on WhatsApp</a></span>
+      </span>`;
+
+    const missing = !st.airport ? "Choose airport" : !st.date ? "Select date" : !ow && !st.ret ? "Select return date" : !st.time ? "Select time" : !ow && !st.retTime ? "Select return time" : !st.type ? "Choose transfer" : !n ? "Enter passengers" : "";
+    go.setAttribute("aria-disabled", String(Boolean(missing)));
+    if (missing) { go.textContent = missing; go.removeAttribute("href"); return; }
+    go.textContent = total == null ? "Book now" : `Book · ${rm(total)}`;
+    go.href = waLink([
+      "Hi Cucimato! I'd like to book an airport transfer.",
+      `Service: ${svc} transfer, ${ow ? "one-way" : "return"}`,
+      `Pick-up: ${pick}`,
+      `Drop-off: ${drop}`,
+      `Pick-up date: ${fmtDate(st.date)}`,
+      `${$("aTimeLabel").textContent}: ${st.time}`,
+      ...(ow ? [] : [`Return date: ${fmtDate(st.ret)} (${drop} → ${pick})`, `Return pick-up time: ${st.retTime}`]),
+      `Passengers: ${n}`,
+      ...(total == null ? [] : [`Price: ${rm(one)} × ${n} × ${ow ? 1 : 2} way${ow ? "" : "s"} = ${rm(total)}`]),
+    ].join("\n"));
+  }
+
+  // ---------- events ----------
+  document.querySelectorAll('input[name="atrip"]').forEach(r => r.addEventListener("change", () => {
+    st.trip = r.value;
+    if (oneway()) { st.ret = null; st.retTime = null; }
+    else if (!st.fromAirport) { st.fromAirport = true; drawRoute(); } // return = airport first
+    st.picking = "date"; closeAll(); drawSlots(); update();
+  }));
+  typeSel.addEventListener("change", () => { st.type = typeSel.value; update(); });
+  pax.addEventListener("input", update);
+  $("aSwap").addEventListener("click", () => { if (!oneway()) return; st.fromAirport = !st.fromAirport; closeAll(); drawRoute(); drawSlots(); update(); });
+
+  $("aDateBtn").addEventListener("click", () => { const was = !$("aDatesPop").hidden && st.picking === "date"; st.picking = "date"; was ? closeAll() : open("dates"); });
+  $("aRetDateBtn").addEventListener("click", () => { const want = st.date ? "ret" : "date"; const was = !$("aDatesPop").hidden && st.picking === want; st.picking = want; was ? closeAll() : open("dates"); });
+  $("aTimeBtn").addEventListener("click", () => $("aTimePop").hidden ? open("time") : closeAll());
+  $("aRetTimeBtn").addEventListener("click", () => $("aRetTimePop").hidden ? open("ret") : closeAll());
+  document.querySelector("[data-aclose]").addEventListener("click", closeAll);
+  $("aCalPrev").addEventListener("click", () => { view.setMonth(view.getMonth() - 1); drawCal(); });
+  $("aCalNext").addEventListener("click", () => { view.setMonth(view.getMonth() + 1); drawCal(); });
+  $("aCalMonths").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-aday]");
+    if (!b || b.disabled) return;
+    const [y, m, d] = b.dataset.aday.split("-").map(Number);
+    const date = new Date(y, m, d);
+    let done;
+    if (st.picking === "ret") { st.ret = date; st.picking = "date"; done = true; }
+    else {
+      st.date = date;
+      if (st.ret && st.ret < date) st.ret = null;
+      done = oneway() || Boolean(st.ret);
+      if (!done) st.picking = "ret";
+    }
+    drawCal(); update();
+    if (done) setTimeout(() => { const n = nextStep(); n && n !== "dates" ? open(n) : closeAll(); }, 250);
+    else { $("aDateBtn").setAttribute("aria-expanded", "false"); $("aRetDateBtn").setAttribute("aria-expanded", "true"); }
+  });
+  $("aTimeSlots").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-atime]"); if (!b) return;
+    st.time = b.dataset.atime; drawSlots(); update();
+    setTimeout(() => { nextStep() === "ret" ? open("ret") : closeAll(); }, 200);
+  });
+  $("aRetTimeSlots").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-aret]"); if (!b) return;
+    st.retTime = b.dataset.aret; drawSlots(); update();
+    setTimeout(closeAll, 200);
+  });
+  // Clicks outside the airport fields close its popovers
+  document.addEventListener("click", (e) => {
+    const inside = e.composedPath().some(n => n instanceof Element && n.closest && n.closest("#panel-airport .fpop-wrap"));
+    if (!inside && e.target !== go) closeAll();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
+  // Book button before everything is filled: open (or focus) the first empty field
+  go.addEventListener("click", (e) => {
+    if (go.getAttribute("aria-disabled") !== "true") return;
+    e.preventDefault(); e.stopPropagation();
+    if (!st.airport) { $("aAirport").focus(); try { $("aAirport").showPicker?.(); } catch {} return; }
+    const n = nextStep();
+    if (n === "dates") { st.picking = st.date && !oneway() ? "ret" : "date"; open("dates"); return; }
+    if (n) { open(n); return; }
+    const el = !st.type ? typeSel : pax;
+    el.focus(); try { el.showPicker?.(); } catch {}
+  });
+
+  drawRoute(); drawTypes(); drawSlots(); update();
+})();
+
+/* Hero tab bar slides sideways on small screens: keep the chosen tab in view */
+(() => {
+  const bar = document.querySelector(".hero__tabs");
+  if (!bar) return;
+  const reveal = () => {
+    const t = bar.querySelector('.htab[aria-selected="true"]');
+    if (!t || bar.scrollWidth <= bar.clientWidth) return;
+    const first = t === bar.querySelector(".htab");  // first tab: slide right back to the logo
+    const left = first ? 0 : t.offsetLeft - 8, right = t.offsetLeft + t.offsetWidth + 36;
+    if (left < bar.scrollLeft) bar.scrollTo({ left, behavior: "smooth" });
+    else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollTo({ left: right - bar.clientWidth, behavior: "smooth" });
+  };
+  new MutationObserver(reveal).observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
+  // hide the right-edge fade once there is nothing more to slide
+  const edge = () => bar.classList.toggle("is-end", bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 2);
+  bar.addEventListener("scroll", edge, { passive: true });
+  addEventListener("resize", edge);
+  reveal(); edge();
+})();
