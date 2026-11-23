@@ -31,7 +31,7 @@ export async function onRequestPost({ request, env }) {
     name, email,
     purpose: q.purpose.slice(0, 255),
     reference_number: reference,
-    redirect_url: `${origin}/payment.html`,
+    redirect_url: `${origin}/payment`,   // Pages serves payment.html at /payment
   });
 
   const res = await fetch(`${API_BASE(env)}/payment-requests`, { method: "POST", headers: hitpayHeaders(env), body: form });
