@@ -38,7 +38,9 @@ export async function onRequestPost({ request, env }) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.url) {
     console.log("hitpay create failed", res.status, JSON.stringify(data).slice(0, 500));
-    return json({ error: "We couldn't start the payment. Please try again or WhatsApp us." }, 502);
+    // In sandbox only, pass HitPay's own error text back to help testing (never includes keys)
+    const debug = env.HITPAY_MODE === "live" ? undefined : { status: res.status, message: data.message || data.error || data.errors || null };
+    return json({ error: "We couldn't start the payment. Please try again or WhatsApp us.", debug }, 502);
   }
 
   // Phone and the trip summary travel with the booking form submission on the website side.
