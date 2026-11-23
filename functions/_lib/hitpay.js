@@ -1,0 +1,33 @@
+/* Shared helpers for the payment functions (Cloudflare Pages Functions).
+   Secrets come from the Pages project settings, never from this repo:
+     HITPAY_API_KEY       business API key (sandbox or live)
+     HITPAY_WEBHOOK_SALT  salt of the webhook endpoint (Developers > Webhook Endpoints)
+     HITPAY_MODE          "sandbox" (default) or "live"
+*/
+
+export const API_BASE = (env) =>
+  env.HITPAY_MODE === "live" ? "https://api.hit-pay.com/v1" : "https://api.sandbox.hit-pay.com/v1";
+
+export const json = (data, status = 200) =>
+  new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+
+export const hitpayHeaders = (env) => ({
+  "X-BUSINESS-API-KEY": env.HITPAY_API_KEY,
+  "X-Requested-With": "XMLHttpRequest",
+  "Content-Type": "application/x-www-form-urlencoded",
+});
+
+// HMAC-SHA256 of the raw body with the webhook salt, hex encoded (HitPay event webhooks)
+export async function hmacHex(secret, body) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body));
+  return [...new Uint8Array(sig)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Constant-time string compare
+export function safeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}

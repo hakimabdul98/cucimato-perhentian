@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Payment | Cucimato Perhentian Island</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
+  <style>
+    /* Page HitPay sends the customer back to. The status is checked with HitPay
+       through /api/status, never trusted from the URL alone. */
+    :root { --ink: #111418; --muted: #6b7280; --line: #e7e7e4; --soft: #f6f6f3; --wa: #25d366; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 32px 16px; background: var(--soft); font: 400 16px/1.6 Inter, system-ui, sans-serif; color: var(--ink); }
+    .card { width: min(480px, 100%); background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 32px 28px; text-align: center; }
+    .logo { height: 54px; width: auto; margin-bottom: 18px; }
+    .icon { width: 64px; height: 64px; margin: 0 auto 16px; border-radius: 50%; display: grid; place-items: center; font-size: 30px; color: #fff; background: var(--ink); }
+    .icon.ok { background: #16a34a; } .icon.bad { background: #dc2626; } .icon.wait { background: var(--muted); }
+    .spin { width: 28px; height: 28px; border: 3px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: s 1s linear infinite; }
+    @keyframes s { to { transform: rotate(360deg); } }
+    h1 { margin: 0 0 6px; font: 600 24px/1.25 "Plus Jakarta Sans", sans-serif; letter-spacing: -.02em; }
+    p { margin: 0 0 6px; color: var(--muted); }
+    .rows { margin: 20px 0; padding: 14px 16px; border-radius: 14px; background: var(--soft); text-align: left; font-size: 14px; }
+    .rows div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; }
+    .rows span:first-child { color: var(--muted); }
+    .rows span:last-child { font-weight: 600; text-align: right; }
+    .btns { display: grid; gap: 10px; margin-top: 18px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 22px; border-radius: 999px; font: 600 15px "Plus Jakarta Sans", sans-serif; text-decoration: none; border: 1px solid var(--ink); background: var(--ink); color: #fff; }
+    .btn--wa { background: var(--wa); border-color: var(--wa); }
+    .btn--line { background: #fff; color: var(--ink); border-color: var(--line); }
+  </style>
+</head>
+<body>
+  <main class="card" id="card" aria-live="polite">
+    <img class="logo" src="images/brand/cucimato-logo-dark.webp" alt="Cucimato Perhentian Island" width="800" height="587">
+    <div class="icon wait"><div class="spin"></div></div>
+    <h1>Checking your payment…</h1>
+    <p>Please keep this page open for a moment.</p>
+  </main>
+
+<script>
+  const WHATSAPP = "60192094669";
+  const wa = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const qs = new URLSearchParams(location.search);
+  const id = qs.get("reference") || qs.get("payment_request_id") || "";
+  const card = document.getElementById("card");
+  const logo = card.querySelector(".logo").outerHTML;
+
+  function show({ kind, title, text, rows = [], buttons = "" }) {
+    const icon = kind === "ok" ? "✓" : kind === "bad" ? "!" : '<div class="spin"></div>';
+    card.innerHTML = `${logo}<div class="icon ${kind}">${icon}</div><h1>${title}</h1><p>${text}</p>
+      ${rows.length ? `<div class="rows">${rows.map(([k, v]) => `<div><span>${k}</span><span>${esc(v)}</span></div>`).join("")}</div>` : ""}
+      <div class="btns">${buttons}</div>`;
+  }
+
+  async function check(tries = 0) {
+    if (!id) return failed();
+    let d = {};
+    try { d = await (await fetch(`/api/status?id=${encodeURIComponent(id)}`, { cache: "no-store" })).json(); } catch {}
+    if (d.status === "completed") {
+      return show({
+        kind: "ok", title: "Payment received",
+        text: "Thank you! Your confirmation and e-ticket are on their way to your email.",
+        rows: [["Booking ref", d.reference], ["Trip", d.purpose], ["Paid", `${d.currency || "MYR"} ${d.amount}`]],
+        buttons: `<a class="btn btn--wa" href="${wa(`Hi Cucimato! I just paid on your website. Booking ref: ${d.reference}`)}" target="_blank" rel="noopener">Chat with us on WhatsApp</a>
+                  <a class="btn btn--line" href="./">Back to website</a>`,
+      });
+    }
+    if (tries < 10 && (!d.status || d.status === "pending")) return setTimeout(() => check(tries + 1), 3000);
+    failed(d);
+  }
+
+  function failed(d = {}) {
+    show({
+      kind: "bad", title: "Payment not completed",
+      text: "No money was taken, or the payment is still being confirmed. You can try again, or WhatsApp us and we'll help.",
+      rows: d.reference ? [["Booking ref", d.reference]] : [],
+      buttons: `<a class="btn" href="./#book-ferry">Try again</a>
+                <a class="btn btn--wa" href="${wa(`Hi Cucimato! My payment on the website didn't go through.${d.reference ? " Ref: " + d.reference : ""}`)}" target="_blank" rel="noopener">WhatsApp us</a>`,
+    });
+  }
+
+  check();
+</script>
+</body>
+</html>

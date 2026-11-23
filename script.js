@@ -696,6 +696,7 @@ const fromIso = (s) => { const [y, m, d] = s.split("-").map(Number); return new 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function bkItem() {
+  if (bk.mode === "airport") { const a = bk.air; return { name: `Airport Transfer (${a.trip === "oneway" ? "One-way" : "Return"})`, img: "about-sea", pos: "50% 50%", sub: `${a.serviceName} transfer: ${a.pick} → ${a.drop}${a.trip === "oneway" ? "" : " and back"}.` }; }
   if (bk.mode === "hotel") { const p = HOTEL_PACKAGES.find(x => x.id === bk.id); return { name: p.name, img: `${p.id}-main`, pos: "50% 50%", sub: "Rooms are confirmed with the resort before any payment." }; }
   if (bk.mode === "ground") { const t = GROUND_TRIPS.find(x => x.id === bk.id); return { name: t.name, img: t.img, pos: t.pos, sub: "Return ferry from Kuala Besut Jetty, with snorkeling trip.", price: t.price }; }
   if (bk.oneway) return { name: "Ferry Ticket (One-way)", img: "about-sea", pos: "50% 50%", sub: `One-way ferry: ${ROUTE[bk.toJetty ? "toJetty" : "toIsland"].join(" → ")}.` };
@@ -713,6 +714,7 @@ function openBooking(mode, id = "") {
 }
 
 function bkPrice() {
+  if (bk.mode === "airport") { const a = bk.air, ways = a.trip === "oneway" ? 1 : 2; return { lines: [[`${rm(a.price)} × ${a.pax} passenger${a.pax > 1 ? "s" : ""} × ${ways} way${ways > 1 ? "s" : ""}`, a.price * a.pax * ways]], total: a.price * a.pax * ways }; }
   if (bk.mode === "ferry" && bk.oneway) {
     const o = FERRY.oneWay;
     if (o.adult == null) return { lines: [], total: null };
@@ -728,10 +730,10 @@ function bkPrice() {
 }
 
 function bkSumHTML(price) {
-  if (!bk.adults) return `<div class="muted"><span>Enter the number of guests to see the price</span></div>`;
+  if (!bk.adults && bk.mode !== "airport") return `<div class="muted"><span>Enter the number of guests to see the price</span></div>`;
   return `${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
     ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
-    ${price.total != null ? `<div class="t"><span>Estimated total</span><span>${rm(price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
+    ${price.total != null ? `<div class="t"><span>${payMode() ? "Total to pay" : "Estimated total"}</span><span>${rm(price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
 }
 
 function renderBooking() {
@@ -749,7 +751,7 @@ function renderBooking() {
         <h3 class="bk__title" id="bkTitle">${esc(it.name)}</h3>
         <p class="bk__sub">${it.sub}</p>
       </div>
-      ${bk.mode === "ferry" ? ferryTripSummary() : `<div class="bk__grid">
+      ${bk.mode === "ferry" ? ferryTripSummary() : bk.mode === "airport" ? airportTripSummary() : `<div class="bk__grid">
         <label class="bk__f">${hotel ? "Check-in" : "Depart"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
         <label class="bk__f">${hotel ? "Check-out" : "Return"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
       </div>
@@ -762,7 +764,7 @@ function renderBooking() {
       <div class="bk__grid">${pax("adults", "Adults", "e.g. 2")}${pax("children", "Children (1–9 years)", "0")}</div>`}
       ${hotel ? `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on activities (optional)</span><strong id="bkAddonVal">${addonSummary()}</strong></summary>
         <div class="bk__ddlist">${ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkaddon="${esc(a.value)}"${bk.addons.has(a.value) ? " checked" : ""}><span>${esc(a.label || a.value)}</span>${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</label>`).join("")}</div></details>`
-        : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
+        : bk.mode === "airport" ? "" : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
       <div><p class="bk__lbl">Your details</p>
         <div class="bk__stack">
           <label class="bk__f"><span class="sr-only">Full name</span><input type="text" name="name" value="${esc(bk.name)}" placeholder="Full name" autocomplete="name" required></label>
@@ -774,8 +776,8 @@ function renderBooking() {
         </div></div>
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
-      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? "Sending…" : hotel ? "Check availability" : "Confirm booking"}</button>
-      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
+      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? `Pay now · ${rm(price.total)}` : "Confirm booking"}</button>
+      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? "Secure payment by HitPay: FPX online banking, DuitNow QR or card. Your confirmation and e-ticket are emailed after payment." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
 }
 
@@ -795,6 +797,20 @@ function ferryTripSummary() {
     <button type="button" class="bk__change" data-bkclose>Change</button>
   </div>`;
 }
+
+// Airport Transfer: details were chosen in the airport panel, so only show them here
+function airportTripSummary() {
+  const a = bk.air;
+  return `<div class="bk__trip">
+    <div><small>Pick-up</small><strong>${shortDate(fromIso(a.date))} · ${a.time}</strong></div>
+    ${a.trip === "oneway" ? `<div><small>Trip</small><strong>One-way, ${a.serviceName}</strong></div>` : `<div><small>Return pick-up</small><strong>${shortDate(fromIso(a.returnDate))} · ${a.returnTime}</strong></div>`}
+    <div><small>Passengers</small><strong>${a.pax}</strong></div>
+    <button type="button" class="bk__change" data-bkclose>Change</button>
+  </div>`;
+}
+
+// Opened by the Airport Transfer panel when the trip has an online price
+function openAirportBooking(details) { bk.air = details; openBooking("airport"); }
 
 function renderBookingDone(it) {
   const hotel = bk.mode === "hotel";
@@ -816,12 +832,14 @@ function renderBookingDone(it) {
 }
 
 function bkValidate() {
+  if (bk.mode !== "airport") {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
   if (bk.mode !== "hotel" && !bk.dep) return bk.toJetty ? "Please choose your boat time from the island." : "Please choose your boat time to the island.";
   if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose a return boat time.";
   if (!bk.adults) return "Please enter the number of adults.";
   if (bk.adults + bk.children > 99) return "For groups above 99 guests, please WhatsApp us.";
+  }
   if (bk.name.trim().length < 2) return "Please enter your full name.";
   const local = bkPhone().replace(/^\+\d+\s/, "");
   if (local.length < 7 || local.length > 12) return "Please enter your WhatsApp number with the right country code.";
@@ -829,9 +847,66 @@ function bkValidate() {
   return "";
 }
 
+/* ---------- Online payment (HitPay through /api/pay on Cloudflare) ----------
+   Book a ferry and Airport Transfer are paid online. The server works the price out
+   again; the page only sends the trip details. If payment isn't available (e.g. the
+   site runs somewhere without the payment functions), ferry falls back to the old
+   "invoice by email" booking and airport falls back to WhatsApp. */
+const PAY = { enabled: true, endpoint: "/api/pay" };
+const payMode = () => PAY.enabled && (bk.mode === "ferry" || bk.mode === "airport");
+
+function payPayload() {
+  const who = { name: bk.name.trim(), email: bk.email.trim(), phone: bkPhone() };
+  if (bk.mode === "airport") {
+    const a = bk.air;
+    return { type: "airport", trip: a.trip, airport: a.code, service: a.service, direction: a.fromAirport ? "fromAirport" : "toAirport",
+      date: a.date, returnDate: a.returnDate, time: a.time, returnTime: a.returnTime, pax: a.pax, ...who };
+  }
+  return { type: "ferry", trip: bk.oneway ? "oneway" : "return", direction: bk.toJetty ? "toJetty" : "toIsland",
+    date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who };
+}
+
+// Returns { url, reference } on success, { unavailable: true } when payment isn't set up, or { error }
+async function startPayment() {
+  try {
+    const res = await fetch(PAY.endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payPayload()) });
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.url) return data;
+    if (!data || res.status === 503 || res.status === 404 || res.status === 405 || res.status === 501) return { unavailable: true };
+    return { error: data.error || "We couldn't start the payment." };
+  } catch { return { unavailable: true }; }
+}
+
 async function bkSubmit() {
   bk.error = bkValidate();
   if (bk.error) { renderBooking(); bkSheet.querySelector(".bk__err")?.scrollIntoView({ block: "center" }); return; }
+  if (payMode()) {
+    bk.sending = true; renderBooking();
+    const pay = await startPayment();
+    if (pay.url) {
+      bk.payRef = pay.reference;
+      if (bk.mode === "ferry") await sendBookingForm().catch(() => {}); // keep the booking in the app too, tagged with the payment ref
+      location.href = pay.url;                                          // HitPay secure checkout
+      return;
+    }
+    bk.sending = false;
+    if (pay.error) { bk.error = `${esc(pay.error)} Or <a href="${waLink(MSG_GENERAL)}" target="_blank" rel="noopener">WhatsApp us</a>.`; renderBooking(); return; }
+    if (bk.mode === "airport") { bk.error = `Online payment isn't available right now. <a href="${esc(bk.air.waHref)}" target="_blank" rel="noopener">Book on WhatsApp</a> instead.`; renderBooking(); return; }
+    // ferry: fall through to the normal booking (invoice by email)
+  }
+  bk.sending = true; renderBooking();
+  try {
+    await sendBookingForm();
+    bk.done = true;
+  } catch {
+    bk.error = `We couldn't send your ${bk.mode === "hotel" ? "request" : "booking"}. Please check your connection, or <a href="${waLink(MSG_GENERAL)}" target="_blank" rel="noopener">WhatsApp us</a>.`;
+  }
+  bk.sending = false; renderBooking();
+  bkSheet.scrollTop = 0;
+}
+
+// Sends the booking to the Google Form that feeds the booking app
+async function sendBookingForm() {
   const F = BOOKING_FORM, hotel = bk.mode === "hotel";
   const p = new URLSearchParams();
   p.append("emailAddress", bk.email.trim());
@@ -851,18 +926,11 @@ async function bkSubmit() {
   } else {
     p.append(F.ground, GROUND_FORM_NAME[bk.mode === "ferry" ? "ferry" : bk.id]);
     const oneWayTag = bk.oneway ? (bk.toJetty ? "ONE-WAY Perhentian → Kuala Besut" : "ONE-WAY Kuala Besut → Perhentian") : "";
-    p.append(F.stay, [bk.stay.trim(), oneWayTag, `${bk.toJetty ? "Boat from island" : "Depart boat"}: ${bk.dep}`, bk.oneway ? "" : `Return boat: ${bk.ret}`].filter(Boolean).join(" | "));
+    const payTag = bk.payRef ? `PAY ONLINE ${bk.payRef}` : "";
+    p.append(F.stay, [bk.stay.trim(), payTag, oneWayTag, `${bk.toJetty ? "Boat from island" : "Depart boat"}: ${bk.dep}`, bk.oneway ? "" : `Return boat: ${bk.ret}`].filter(Boolean).join(" | "));
     p.append("pageHistory", "0,2");
   }
-  bk.sending = true; renderBooking();
-  try {
-    await fetch(F.action, { method: "POST", mode: "no-cors", body: p });
-    bk.done = true;
-  } catch {
-    bk.error = `We couldn't send your ${hotel ? "request" : "booking"}. Please check your connection, or <a href="${waLink(MSG_GENERAL)}" target="_blank" rel="noopener">WhatsApp us</a>.`;
-  }
-  bk.sending = false; renderBooking();
-  bkSheet.scrollTop = 0;
+  await fetch(F.action, { method: "POST", mode: "no-cors", body: p });
 }
 
 document.addEventListener("click", (e) => {
@@ -916,6 +984,7 @@ const AIRPORT = {
 
 (() => {
   if (!$("aForm")) return;
+  let payDetails = null;
   const st = { trip: "oneway", type: "", airport: "", fromAirport: true, date: null, ret: null, picking: "date", time: null, retTime: null };
   const typeSel = $("aType"), pax = $("aPax"), go = $("aGo"), note = $("aNote");
   const oneway = () => st.trip === "oneway";
@@ -1028,6 +1097,10 @@ const AIRPORT = {
     go.setAttribute("aria-disabled", String(Boolean(missing)));
     if (missing) { go.textContent = missing; go.removeAttribute("href"); return; }
     go.textContent = total == null ? "Book now" : `Book · ${rm(total)}`;
+    // priced trips (Kota Bharu shared) are paid online in the booking sheet; others go to WhatsApp
+    go.dataset.pay = total == null ? "" : "1";
+    payDetails = total == null ? null : { trip: ow ? "oneway" : "return", code: a.code, service: st.type, serviceName: svc, fromAirport: st.fromAirport,
+      pick, drop, date: isoDate(st.date), time: st.time, returnDate: ow ? "" : isoDate(st.ret), returnTime: ow ? "" : st.retTime, pax: n, price: one };
     go.href = waLink([
       "Hi Cucimato! I'd like to book an airport transfer.",
       `Service: ${svc} transfer, ${ow ? "one-way" : "return"}`,
@@ -1094,7 +1167,10 @@ const AIRPORT = {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
   // Book button before everything is filled: open (or focus) the first empty field
   go.addEventListener("click", (e) => {
-    if (go.getAttribute("aria-disabled") !== "true") return;
+    if (go.getAttribute("aria-disabled") !== "true") {
+      if (go.dataset.pay === "1" && payDetails) { e.preventDefault(); openAirportBooking({ ...payDetails, waHref: go.href }); }
+      return;
+    }
     e.preventDefault(); e.stopPropagation();
     if (!st.airport) { $("aAirport").focus(); try { $("aAirport").showPicker?.(); } catch {} return; }
     const n = nextStep();
