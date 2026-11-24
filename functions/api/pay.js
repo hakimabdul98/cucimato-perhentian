@@ -2,7 +2,7 @@
    Body (JSON): booking details + { name, email, phone }.
    The amount is calculated on the server (functions/_lib/pricing.js). */
 import { quote } from "../_lib/pricing.js";
-import { API_BASE, hitpayHeaders, json } from "../_lib/hitpay.js";
+import { API_BASE, hitpayHeaders, json, tellBookingApp } from "../_lib/hitpay.js";
 
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
 
@@ -43,8 +43,11 @@ export async function onRequestPost({ request, env }) {
     return json({ error: "We couldn't start the payment. Please try again or WhatsApp us.", debug }, 502);
   }
 
-  // Phone and the trip summary travel with the booking form submission on the website side.
-  console.log("payment request", reference, data.id, q.amount, phone ? "phone given" : "no phone");
+  // Hand the trip details to the booking app now; it confirms them once HitPay says "paid".
+  const pick = ["type", "trip", "direction", "airport", "service", "date", "returnDate", "time", "returnTime", "adults", "children", "pax"];
+  const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
+  const app = await tellBookingApp({ stage: "created", paymentId: data.id, reference, amount: q.amount, booking: { ...booking, name, email, phone } });
+  console.log("payment request", reference, data.id, q.amount, "booking app", app);
   return json({ url: data.url, id: data.id, reference, amount: q.amount });
 }
 

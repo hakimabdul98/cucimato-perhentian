@@ -31,3 +31,18 @@ export function safeEqual(a, b) {
   for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return r === 0;
 }
+
+/* The booking app (Google Apps Script) listens to one hidden Google Form.
+   Messages are not trusted there: the app re-checks the payment through /api/status. */
+export const BOOKING_APP_FORM = {
+  url: "https://docs.google.com/forms/d/e/1FAIpQLSfZBZ29-qx3KWfvTkTdnQheKYzXzwRR57L3fYttr-bf-Stsog/formResponse",
+  entry: "entry.1836089793",
+};
+
+export async function tellBookingApp(payload) {
+  try {
+    const body = new URLSearchParams({ [BOOKING_APP_FORM.entry]: JSON.stringify(payload).slice(0, 4000) });
+    const r = await fetch(BOOKING_APP_FORM.url, { method: "POST", body });
+    return r.status;
+  } catch (e) { return String(e); }
+}

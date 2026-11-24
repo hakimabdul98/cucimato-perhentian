@@ -884,9 +884,8 @@ async function bkSubmit() {
     bk.sending = true; renderBooking();
     const pay = await startPayment();
     if (pay.url) {
-      bk.payRef = pay.reference;
-      if (bk.mode === "ferry") await sendBookingForm().catch(() => {}); // keep the booking in the app too, tagged with the payment ref
-      location.href = pay.url;                                          // HitPay secure checkout
+      bk.payRef = pay.reference;           // the server already handed the trip to the booking app
+      location.href = pay.url;             // HitPay secure checkout
       return;
     }
     bk.sending = false;
