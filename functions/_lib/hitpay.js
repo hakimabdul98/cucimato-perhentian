@@ -2,11 +2,18 @@
    Secrets come from the Pages project settings, never from this repo:
      HITPAY_API_KEY       business API key (sandbox or live)
      HITPAY_WEBHOOK_SALT  salt of the webhook endpoint (Developers > Webhook Endpoints)
-     HITPAY_MODE          "sandbox" (default) or "live"
+     HITPAY_MODE          "sandbox" or "live" (required: anything else means payments are off)
 */
 
+// "live" | "sandbox" when payments are fully set up, otherwise null (the site then hides "Pay now")
+export function payMode(env) {
+  const m = String(env.HITPAY_MODE || "").trim().toLowerCase();
+  if ((m === "live" || m === "sandbox") && String(env.HITPAY_API_KEY || "").trim()) return m;
+  return null;
+}
+
 export const API_BASE = (env) =>
-  env.HITPAY_MODE === "live" ? "https://api.hit-pay.com/v1" : "https://api.sandbox.hit-pay.com/v1";
+  payMode(env) === "live" ? "https://api.hit-pay.com/v1" : "https://api.sandbox.hit-pay.com/v1";
 
 export const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });

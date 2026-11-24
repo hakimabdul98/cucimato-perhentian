@@ -2,12 +2,19 @@
    Body (JSON): booking details + { name, email, phone }.
    The amount is calculated on the server (functions/_lib/pricing.js). */
 import { quote } from "../_lib/pricing.js";
-import { API_BASE, hitpayHeaders, json, tellBookingApp } from "../_lib/hitpay.js";
+import { API_BASE, hitpayHeaders, json, payMode, tellBookingApp } from "../_lib/hitpay.js";
 
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
 
+// GET /api/pay — is online payment on? The page asks this on load and shows "Pay now" only when it is.
+export function onRequestGet({ env }) {
+  const mode = payMode(env);
+  return json({ enabled: Boolean(mode), test: mode === "sandbox" });
+}
+
 export async function onRequestPost({ request, env }) {
-  if (!env.HITPAY_API_KEY) return json({ error: "Online payment is not set up yet. Please WhatsApp us." }, 503);
+  const mode = payMode(env);
+  if (!mode) return json({ error: "Online payment is not set up yet. Please WhatsApp us." }, 503);
 
   let body;
   try { body = await request.json(); } catch { return json({ error: "Bad request." }, 400); }
@@ -39,7 +46,7 @@ export async function onRequestPost({ request, env }) {
   if (!res.ok || !data.url) {
     console.log("hitpay create failed", res.status, JSON.stringify(data).slice(0, 500));
     // In sandbox only, pass HitPay's own error text back to help testing (never includes keys)
-    const debug = env.HITPAY_MODE === "live" ? undefined : { status: res.status, message: data.message || data.error || data.errors || null };
+    const debug = mode === "live" ? undefined : { status: res.status, message: data.message || data.error || data.errors || null };
     return json({ error: "We couldn't start the payment. Please try again or WhatsApp us.", debug }, 502);
   }
 
@@ -51,4 +58,3 @@ export async function onRequestPost({ request, env }) {
   return json({ url: data.url, id: data.id, reference, amount: q.amount });
 }
 
-export const onRequest = () => json({ error: "Use POST." }, 405);

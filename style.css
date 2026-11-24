@@ -534,6 +534,7 @@ a.fpanel__go { display: inline-flex; align-items: center; justify-content: cente
 .fword text { font-family: var(--font-nav); font-weight: 800; font-size: 330px; letter-spacing: -.04em; fill: var(--ink); }
 .fbottom { display: flex; justify-content: space-between; gap: 12px; padding: 22px clamp(20px, 7vw, 104px) 28px; }
 .fbottom small { color: var(--muted); font-size: 12px; }
+.fbottom small a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 @media (max-width: 1000px) {
   .fcols { grid-template-columns: 1fr 1fr; }

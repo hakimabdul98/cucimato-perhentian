@@ -777,7 +777,7 @@ function renderBooking() {
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
       <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? `Pay now · ${rm(price.total)}` : "Confirm booking"}</button>
-      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? "Secure payment by HitPay: FPX online banking, DuitNow QR or card. Your confirmation and e-ticket are emailed after payment." : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
+      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? `${PAY.test ? "<b>Test mode:</b> no real money is taken. " : ""}Secure payment by HitPay: FPX online banking, DuitNow QR or card. Your confirmation and e-ticket are emailed after payment. By paying you agree to our <a href="terms.html" target="_blank" rel="noopener">booking terms</a>.` : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
 }
 
@@ -852,7 +852,12 @@ function bkValidate() {
    again; the page only sends the trip details. If payment isn't available (e.g. the
    site runs somewhere without the payment functions), ferry falls back to the old
    "invoice by email" booking and airport falls back to WhatsApp. */
-const PAY = { enabled: true, endpoint: "/api/pay" };
+const PAY = { enabled: false, test: false, endpoint: "/api/pay" };
+// Ask the server once whether online payment is switched on (off on GitHub Pages or until HitPay is set up)
+fetch(PAY.endpoint, { cache: "no-store" })
+  .then(r => r.ok ? r.json() : null)
+  .then(d => { PAY.enabled = Boolean(d?.enabled); PAY.test = Boolean(d?.test); if (bkSheet.open && !bk.done && !bk.sending) renderBooking(); })
+  .catch(() => {});
 const payMode = () => PAY.enabled && (bk.mode === "ferry" || bk.mode === "airport");
 
 function payPayload() {
@@ -1167,7 +1172,7 @@ const AIRPORT = {
   // Book button before everything is filled: open (or focus) the first empty field
   go.addEventListener("click", (e) => {
     if (go.getAttribute("aria-disabled") !== "true") {
-      if (go.dataset.pay === "1" && payDetails) { e.preventDefault(); openAirportBooking({ ...payDetails, waHref: go.href }); }
+      if (go.dataset.pay === "1" && payDetails && PAY.enabled) { e.preventDefault(); openAirportBooking({ ...payDetails, waHref: go.href }); }
       return;
     }
     e.preventDefault(); e.stopPropagation();

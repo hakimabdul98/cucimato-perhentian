@@ -1,12 +1,12 @@
 /* GET /api/status?id=<payment request id> — ask HitPay for the real status.
    Used by payment.html, because the redirect back from HitPay alone can be faked. */
-import { API_BASE, hitpayHeaders, json, tellBookingApp } from "../_lib/hitpay.js";
+import { API_BASE, hitpayHeaders, json, payMode, tellBookingApp } from "../_lib/hitpay.js";
 
 export async function onRequestGet({ request, env, waitUntil }) {
   const qs = new URL(request.url).searchParams;
   const id = qs.get("id") || "";
   if (!/^[0-9a-f-]{20,64}$/i.test(id)) return json({ error: "Bad id." }, 400);
-  if (!env.HITPAY_API_KEY) return json({ error: "Not set up." }, 503);
+  if (!payMode(env)) return json({ error: "Not set up." }, 503);
 
   const res = await fetch(`${API_BASE(env)}/payment-requests/${id}`, { headers: hitpayHeaders(env) });
   const d = await res.json().catch(() => ({}));
