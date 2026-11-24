@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Booking Terms &amp; Refund Policy | Cucimato Perhentian Island</title>
-  <meta name="description" content="Booking terms, payment, cancellation and refund policy for ferry tickets, airport transfers and packages booked with Cucimato Perhentian Island.">
+  <title>Terms &amp; Policies | Cucimato Perhentian Island</title>
+  <meta name="description" content="Booking terms, payment terms, refunds, service delivery and privacy policy for ferry tickets, airport transfers and packages booked with Cucimato Perhentian Island.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;800&display=swap" rel="stylesheet">
@@ -12,21 +12,27 @@
   <style>
     :root { --ink: #111418; --muted: #6b7280; --line: #e7e7e4; --soft: #f6f6f3; }
     * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
     body { margin: 0; background: var(--soft); font: 400 16px/1.65 Inter, system-ui, sans-serif; color: var(--ink); }
     .wrap { width: min(760px, 100%); margin: 0 auto; padding: 28px 16px 56px; }
     .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
     .top img { height: 48px; width: auto; }
     .back { font: 600 14px "Plus Jakarta Sans", sans-serif; color: var(--ink); text-decoration: none; padding: 9px 16px; border: 1px solid var(--line); border-radius: 999px; background: #fff; }
     .card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 32px 28px; }
-    h1 { margin: 0 0 4px; font: 600 clamp(24px, 4vw, 32px)/1.2 "Plus Jakarta Sans", sans-serif; letter-spacing: -.02em; }
-    .upd { margin: 0 0 22px; color: var(--muted); font-size: 14px; }
-    h2 { margin: 30px 0 8px; font: 600 18px/1.3 "Plus Jakarta Sans", sans-serif; }
+    .card + .card { margin-top: 16px; }
+    h1 { margin: 0 0 4px; font: 600 clamp(26px, 4.4vw, 34px)/1.2 "Plus Jakarta Sans", sans-serif; letter-spacing: -.02em; }
+    .upd { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+    .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+    .jump a { font: 600 14px "Plus Jakarta Sans", sans-serif; color: var(--ink); text-decoration: none; padding: 8px 14px; border-radius: 999px; background: var(--soft); border: 1px solid var(--line); }
+    h2 { margin: 0 0 6px; font: 600 clamp(21px, 3.4vw, 25px)/1.25 "Plus Jakarta Sans", sans-serif; letter-spacing: -.01em; scroll-margin-top: 16px; }
+    .lead { margin: 0 0 6px; color: var(--muted); }
+    h3 { margin: 26px 0 8px; font: 600 17px/1.3 "Plus Jakarta Sans", sans-serif; }
     p, li { color: #2b2f36; }
     p { margin: 0 0 10px; }
     ul { margin: 0 0 10px; padding-left: 20px; }
-    li { margin: 4px 0; }
+    li { margin: 5px 0; }
     b { color: var(--ink); }
-    .box { margin: 0 0 8px; padding: 14px 16px; border-radius: 14px; background: var(--soft); font-size: 15px; }
+    .box { margin: 0; padding: 14px 16px; border-radius: 14px; background: var(--soft); font-size: 15px; }
     a { color: var(--ink); }
     .foot { margin-top: 18px; text-align: center; color: var(--muted); font-size: 13px; }
     @media (max-width: 560px) { .card { padding: 24px 18px; } }
@@ -39,49 +45,164 @@
       <a class="back" href="./">← Back to site</a>
     </div>
 
-    <main class="card">
-      <h1>Booking Terms &amp; Refund Policy</h1>
-      <p class="upd">Cucimato Perhentian Island · Kuala Besut Jetty, 22300 Besut, Terengganu, Malaysia</p>
+    <main>
+      <section class="card">
+        <h1>Terms &amp; Policies</h1>
+        <p class="upd">Cucimato Perhentian Island · Kuala Besut Jetty, 22300 Besut, Terengganu, Malaysia · Updated 24 November 2026</p>
+        <nav class="jump" aria-label="On this page">
+          <a href="#terms">Terms &amp; Conditions</a>
+          <a href="#delivery">Service Delivery</a>
+          <a href="#privacy">Privacy Policy</a>
+        </nav>
+        <p class="box">By booking or paying with us, on this website, by WhatsApp or by email, you agree to these terms. If anything is unclear, please <a href="https://wa.me/60192094669" target="_blank" rel="noopener">WhatsApp us</a> before you book.</p>
+      </section>
 
-      <div class="box">By booking or paying on this website, you agree to these terms. If anything is unclear, please <a href="https://wa.me/60192094669" target="_blank" rel="noopener">WhatsApp us</a> before you book.</div>
+      <!-- ============ TERMS & CONDITIONS ============ -->
+      <section class="card" id="terms">
+        <h2>Terms &amp; Conditions</h2>
 
-      <h2>1. Ferry tickets and airport transfers (paid online)</h2>
-      <ul>
-        <li><b>Full payment:</b> the full amount is paid online when you book. Your booking is confirmed once the payment is successful.</li>
-        <li><b>Confirmation:</b> your receipt, invoice and e-ticket are sent to the email you gave us. Please show the e-ticket (on your phone is fine) at the jetty or to your driver.</li>
-        <li><b>Boat and pickup times</b> are the times you chose. Please arrive at the jetty at least 30 minutes early. Late arrivals may have to take a later boat, subject to seats.</li>
-        <li><b>Airport pickup:</b> please book flights that land within the pickup times shown. If your flight is delayed, WhatsApp us as soon as you can.</li>
-      </ul>
+        <h3>1. Bookings</h3>
+        <ul>
+          <li>Book with us through this website, our WhatsApp (+60 19 209 4669) or our email. Bookings made anywhere else are not handled by us.</li>
+          <li>Please check your details before you book: name, phone number, email, travel dates, boat or pickup times and number of passengers. We use them exactly as you give them.</li>
+          <li>A booking is confirmed only after we receive your payment (in full for ferry tickets and airport transfers, or the deposit for packages).</li>
+        </ul>
 
-      <h2>2. Hotel and ground packages (invoice)</h2>
-      <ul>
-        <li><b>Deposit:</b> a non-refundable deposit (shown on your invoice) is required to confirm and secure the booking, by the date on the invoice.</li>
-        <li><b>Balance payment:</b> the remaining balance is payable in full by the date on the invoice.</li>
-      </ul>
+        <h3>2. Payment terms</h3>
+        <ul>
+          <li><b>Currency:</b> all prices are in Malaysian Ringgit (MYR). The total shown before you pay is the full amount, with no hidden fees.</li>
+          <li><b>Ferry tickets and airport transfers:</b> paid in full online when you book, through HitPay. You can pay by FPX online banking, DuitNow QR, e-wallets (Touch 'n Go, ShopeePay, GrabPay) or debit/credit card.</li>
+          <li><b>Hotel and ground packages:</b> paid by invoice. A deposit secures the booking and the balance is due by the date on the invoice. Pay by bank transfer to the account on the invoice, then send us the payment proof on WhatsApp.</li>
+          <li><b>Confirmation:</b> your receipt (and e-ticket for ferry and airport bookings) is sent to your email after payment. If you were charged but get no email within 1 hour, WhatsApp us with your reference number (for example CW-261220-ABCD).</li>
+          <li><b>Failed or unfinished payments:</b> if a payment fails or you leave the payment page, no booking is made and no money is taken. You can try again.</li>
+          <li><b>Price:</b> you pay the price shown when you book. Later price changes do not affect bookings that are already paid.</li>
+          <li><b>Bank charges:</b> charges from your own bank or card issuer (such as foreign currency conversion) are paid by you.</li>
+        </ul>
 
-      <h2>3. Cancellation and refunds</h2>
-      <ul>
-        <li><b>Ferry tickets and airport transfers:</b> payments are <b>non-refundable</b> once the booking is confirmed, whatever the reason for cancellation. You may change the date instead (see section 4).</li>
-        <li><b>Packages:</b> the deposit is strictly non-refundable once paid, whatever the reason for cancellation.</li>
-        <li><b>If we cancel:</b> if we cannot provide a service you paid for, we will offer a new date or a refund of the amount paid for that service.</li>
-        <li><b>Double or wrong payments:</b> if you were charged twice or by mistake, WhatsApp or email us with your reference number and we will refund the extra amount to the original payment method, usually within 7–14 working days.</li>
-      </ul>
+        <h3>3. Cancellation and refunds</h3>
+        <ul>
+          <li><b>Ferry tickets and airport transfers:</b> payments are <b>non-refundable</b> once the booking is confirmed, whatever the reason for cancellation. You may ask to change the date instead (see section 4).</li>
+          <li><b>Packages:</b> the deposit is strictly non-refundable once paid, whatever the reason for cancellation.</li>
+          <li><b>If we cancel:</b> if we cannot provide a service you paid for, we will offer a new date or refund the amount paid for that service.</li>
+          <li><b>Double or wrong payments:</b> if you were charged twice or by mistake, WhatsApp or email us with your reference number. We refund the extra amount to the original payment method, usually within 7–14 working days.</li>
+        </ul>
 
-      <h2>4. Changes to your booking</h2>
-      <ul>
-        <li><b>Booking amendments:</b> please tell us about any change at least 14 days before your travel date. Changes depend on availability and may incur additional charges.</li>
-        <li><b>Change of travel date:</b> requests to change the travel date depend on availability and a service charge may apply.</li>
-      </ul>
+        <h3>4. Changes to your booking</h3>
+        <ul>
+          <li><b>Booking amendments:</b> please tell us about any change at least 14 days before your travel date. Changes depend on availability and may cost extra.</li>
+          <li><b>Change of travel date:</b> requests to change the travel date depend on availability, and a service charge may apply.</li>
+          <li>Changes are valid only after our team confirms them on WhatsApp or email. No changes can be made after the travel date has passed.</li>
+        </ul>
 
-      <h2>5. Weather and sea conditions</h2>
-      <p>Boats only run when it is safe. We are not responsible for cancellation, postponement or disruption caused by bad or unsafe weather, or by decisions of the boat operators or the authorities. In that case we will help you move to the next available boat or date, under the policies above.</p>
+        <h3>5. Weather and sea conditions</h3>
+        <p>Boats only run when it is safe. We are not responsible for cancellations, delays or changes caused by bad weather, sea conditions, or decisions of the boat operators or the authorities. When this happens, we will help you move to the next available boat or date, under the policies above.</p>
 
-      <h2>6. Payment</h2>
-      <p>Online payments are processed securely by <b>HitPay</b> (FPX online banking, DuitNow QR, e-wallets and cards). We never see or store your card or bank login details. For other ways to pay, please contact our team.</p>
+        <h3>6. On your travel day</h3>
+        <ul>
+          <li>Be at Kuala Besut Jetty, or your pickup point, at least <b>30 minutes</b> before your time. If you are late, you may have to take a later boat if seats are available, or lose the service without a refund.</li>
+          <li>The boat crew or driver may refuse anyone who is drunk, abusive, or a danger to others. In that case no refund is given.</li>
+          <li>Please look after your own bags and belongings. We are not responsible for loss, damage or theft.</li>
+          <li>The Perhentian Islands are a marine park. Please respect the crew, other guests, the coral and sea life.</li>
+        </ul>
 
-      <h2>7. Contact us</h2>
-      <p>WhatsApp: <a href="https://wa.me/60192094669" target="_blank" rel="noopener">+60 19 209 4669</a><br>
-         Email: <a href="mailto:cucimatopulauperhentian@gmail.com">cucimatopulauperhentian@gmail.com</a></p>
+        <h3>7. Partners and our responsibility</h3>
+        <ul>
+          <li>Some services are run by our partners, such as boat operators, drivers, resorts and dive centres. We choose partners we trust, but we are not responsible for their own acts or mistakes.</li>
+          <li>We may change routes, times or parts of a service for safety or operational reasons, and we will tell you as early as we can.</li>
+          <li>Our responsibility is limited to the amount you paid for the service. We are not responsible for knock-on losses such as missed flights, connections or hotel check-ins.</li>
+          <li>We are not responsible for events beyond our control, such as natural disasters, strikes or government orders, but we will do our best to help.</li>
+        </ul>
+
+        <h3>8. Website</h3>
+        <p>Please do not misuse this website or its booking and payment tools. The Cucimato name, logo, photos and text on this website belong to us and may not be reused without our permission.</p>
+
+        <h3>9. Governing law</h3>
+        <p>These terms follow the laws of Malaysia, and any dispute will be handled by the courts of Malaysia.</p>
+      </section>
+
+      <!-- ============ SERVICE DELIVERY ============ -->
+      <section class="card" id="delivery">
+        <h2>Service Delivery Policy</h2>
+        <p class="lead">What you get, when you get it, and what we need from you.</p>
+
+        <h3>1. Our services</h3>
+        <ul>
+          <li>Ferry tickets between Kuala Besut Jetty and the Perhentian Islands (return or one-way)</li>
+          <li>Airport transfers between the airport and Kuala Besut Jetty</li>
+          <li>Hotel + packages and ground packages, including snorkeling trips and activities</li>
+        </ul>
+
+        <h3>2. How you receive your booking</h3>
+        <ul>
+          <li><b>Ferry tickets and airport transfers paid online:</b> your receipt, invoice and e-ticket are emailed right after payment, usually within a few minutes.</li>
+          <li><b>Packages:</b> your invoice is sent by email and WhatsApp within 24 hours. Your receipt follows after each payment.</li>
+          <li><b>Hotel requests:</b> we check room availability and reply within 24 hours. No payment is taken until the room is confirmed.</li>
+          <li>The service itself is delivered on the date and time you booked.</li>
+        </ul>
+
+        <h3>3. On the day</h3>
+        <ul>
+          <li><b>Ferry:</b> show your e-ticket (on your phone is fine) at Kuala Besut Jetty. For the boat back, be at your island pickup point on time.</li>
+          <li><b>Airport transfer:</b> our driver contacts you on WhatsApp before pickup. Please keep your phone on.</li>
+          <li>If anything changes, such as weather or delays, we tell you on WhatsApp as early as we can and offer the next best option.</li>
+        </ul>
+
+        <h3>4. What we need from you</h3>
+        <ul>
+          <li>Correct booking details and a phone number we can reach on WhatsApp.</li>
+          <li>Being at the right place on time. A no-show, or not being reachable, may mean losing the service without a refund.</li>
+        </ul>
+      </section>
+
+      <!-- ============ PRIVACY ============ -->
+      <section class="card" id="privacy">
+        <h2>Privacy Policy</h2>
+        <p class="lead">We keep your personal data safe and use it only to look after your trip, in line with Malaysia's Personal Data Protection Act 2010.</p>
+
+        <h3>1. What we collect</h3>
+        <ul>
+          <li><b>Contact details:</b> your name, phone/WhatsApp number and email.</li>
+          <li><b>Trip details:</b> travel dates, boat or pickup times, number of passengers, where you are staying, flight times for airport transfers, and any special requests.</li>
+          <li><b>Payment details:</b> the amount, payment status and reference. Card and bank details are handled by HitPay; we never see or store them.</li>
+          <li><b>Messages:</b> what you send us on WhatsApp or email.</li>
+        </ul>
+
+        <h3>2. How we use it</h3>
+        <ul>
+          <li>To make and manage your booking, and to send your invoice, receipt and e-ticket.</li>
+          <li>To contact you about your trip, for example a change of boat time or weather updates.</li>
+          <li>To keep business and tax records.</li>
+          <li>To send offers or news only if you agree. You can say stop at any time.</li>
+        </ul>
+
+        <h3>3. Who we share it with</h3>
+        <ul>
+          <li>Partners who deliver your trip, such as boat operators, drivers and resorts, and only what they need.</li>
+          <li>HitPay, to process your payment.</li>
+          <li>The services we use to run our business and this website, such as Google (email and booking records) and Cloudflare (website hosting).</li>
+          <li>The authorities, when the law requires it.</li>
+        </ul>
+        <p>We never sell or rent your personal data.</p>
+
+        <h3>4. How long we keep it</h3>
+        <p>We keep your data only as long as we need it for your booking, and longer only where the law requires it (for example accounting and tax records).</p>
+
+        <h3>5. Your rights</h3>
+        <p>You can ask us to show you the data we hold about you, correct it, stop marketing messages, or delete it (unless the law requires us to keep it). Email <a href="mailto:cucimatopulauperhentian@gmail.com">cucimatopulauperhentian@gmail.com</a> or WhatsApp us.</p>
+
+        <h3>6. Cookies</h3>
+        <p>This website does not use advertising or tracking cookies. It only remembers, for your current visit, that you have already seen the opening animation. The HitPay payment page and embedded content (such as Instagram videos you choose to play) may use their own cookies.</p>
+
+        <h3>7. Security</h3>
+        <p>Our website runs on a secure connection (HTTPS). We protect your data with reasonable care and limit access to our own team.</p>
+      </section>
+
+      <section class="card">
+        <h2>Contact us</h2>
+        <p>WhatsApp: <a href="https://wa.me/60192094669" target="_blank" rel="noopener">+60 19 209 4669</a><br>
+           Email: <a href="mailto:cucimatopulauperhentian@gmail.com">cucimatopulauperhentian@gmail.com</a><br>
+           Kuala Besut Jetty, 22300 Besut, Terengganu, Malaysia</p>
+      </section>
     </main>
     <p class="foot">Cucimato Perhentian Island ©<span id="year"></span></p>
   </div>
