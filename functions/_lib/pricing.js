@@ -6,6 +6,12 @@ export const FERRY = {
   return: { adult: 80, child: 50 },
   oneway: { adult: 40, child: 25 },
 };
+// Optional snorkeling trips at the Book a ferry checkout, per person, for every passenger on the booking
+export const FERRY_ADDONS = {
+  perhentian: { name: "Perhentian Island Snorkeling Trip", adult: 55, child: 30 },
+  rawa: { name: "Rawa Island Snorkeling Trip", adult: 80, child: 50 },
+  redang: { name: "Redang Island Snorkeling Trip", adult: 180, child: 100 },
+};
 
 /* Airport transfer to/from Kuala Besut Jetty.
    shared: RM per person, per way (null = no shared service).
@@ -49,10 +55,21 @@ export function quote(b) {
     const p = FERRY[b.trip];
     const toJetty = oneway && b.direction === "toJetty";
     const [from, to] = toJetty ? [ISLAND, JETTY] : [JETTY, ISLAND];
+    // Add-ons: [{ id, adults, children }] (people joining that trip, up to the ferry numbers)
+    const raw = Array.isArray(b.addons) ? b.addons : [];
+    const addons = [], seen = new Set();
+    for (const x of raw) {
+      const id = typeof x === "string" ? x : x && x.id;
+      if (!FERRY_ADDONS[id] || seen.has(id)) return { error: "Please check the add-on trip." };
+      const a = typeof x === "string" ? adults : Number(x.adults), c = typeof x === "string" ? children : Number(x.children || 0);
+      if (!count(a, 0, adults) || !count(c, 0, children) || a + c < 1) return { error: "Please check the number of people on the add-on trip." };
+      seen.add(id); addons.push({ id, adults: a, children: c });
+    }
+    const addonAmount = addons.reduce((t, x) => t + x.adults * FERRY_ADDONS[x.id].adult + x.children * FERRY_ADDONS[x.id].child, 0);
     return {
-      amount: adults * p.adult + children * p.child,
-      purpose: `Ferry ticket ${oneway ? "one-way" : "return"}: ${from} → ${to}`,
-      summary: { type: "ferry", trip: b.trip, from, to, date: b.date, time: b.time, returnDate: oneway ? "" : b.returnDate, returnTime: oneway ? "" : b.returnTime, adults, children },
+      amount: adults * p.adult + children * p.child + addonAmount,
+      purpose: `Ferry ticket ${oneway ? "one-way" : "return"}: ${from} → ${to}${addons.length ? " + " + addons.map(x => FERRY_ADDONS[x.id].name).join(" + ") : ""}`,
+      summary: { type: "ferry", trip: b.trip, from, to, date: b.date, time: b.time, returnDate: oneway ? "" : b.returnDate, returnTime: oneway ? "" : b.returnTime, adults, children, addons },
     };
   }
 

@@ -51,6 +51,13 @@ const FERRY = {
   maxGuests: 30,
   oneWay: { adult: 40, child: 25 },         // one-way price (either direction); null = "Price on request"
 };
+// Optional snorkeling trips added at the Book a ferry checkout (per person, for every passenger on the booking).
+// Keep in step with FERRY_ADDONS in functions/_lib/pricing.js and the booking app.
+const FERRY_ADDONS = [
+  { id: "perhentian", name: "Perhentian Island Snorkeling Trip", adult: 55, child: 30 },
+  { id: "rawa", name: "Rawa Island Snorkeling Trip", adult: 80, child: 50 },
+  { id: "redang", name: "Redang Island Snorkeling Trip", adult: 180, child: 100 },
+];
 
 const today = new Date(); today.setHours(0, 0, 0, 0);
 const firstBookable = new Date(today); firstBookable.setDate(today.getDate() + FERRY.minDaysAhead);
@@ -709,7 +716,7 @@ function bkItem() {
 }
 
 function openBooking(mode, id = "") {
-  Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set(), promoCode: "", promoApplied: null, promoMsg: "", promoBusy: false });
+  Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set(), ferryAddons: new Map(), promoCode: "", promoApplied: null, promoMsg: "", promoBusy: false });
   bk.oneway = mode === "ferry" && isOneWay();
   bk.toJetty = mode === "ferry" && toJetty();
   if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(bk.oneway ? ferry.depart : ferry.ret), dep: ferry.departTime || "", ret: bk.oneway ? "" : ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
@@ -720,12 +727,31 @@ function openBooking(mode, id = "") {
 
 function bkPrice() {
   if (bk.mode === "airport") return { lines: bk.air.lines, total: bk.air.total };
-  if (bk.mode === "ferry" && bk.oneway) {
+  if (bk.mode === "ferry") {
+    const f = ferryPrice();
+    if (f.total == null) return f;
+    const extra = FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).flatMap(a => {
+      const n = bk.ferryAddons.get(a.id);
+      return [
+        ...(n.adults ? [[`${a.name} · ${rm(a.adult)} × ${n.adults} adult${n.adults > 1 ? "s" : ""}`, a.adult * n.adults]] : []),
+        ...(n.children ? [[`${a.name} · ${rm(a.child)} × ${n.children} child${n.children > 1 ? "ren" : ""}`, a.child * n.children]] : []),
+      ];
+    });
+    return { lines: [...f.lines, ...extra], total: f.total + extra.reduce((t, l) => t + l[1], 0) };
+  }
+  return bkPriceOther();
+}
+
+function ferryPrice() {
+  if (bk.oneway) {
     const o = FERRY.oneWay;
     if (o.adult == null) return { lines: [], total: null };
     return { lines: [[`${rm(o.adult)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * o.adult], ...(bk.children && o.child != null ? [[`${rm(o.child)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * o.child]] : [])], total: bk.adults * o.adult + bk.children * (o.child ?? 0) };
   }
-  if (bk.mode === "ferry") return { lines: [[`${rm(FERRY.adult)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * FERRY.adult], ...(bk.children ? [[`${rm(FERRY.child)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * FERRY.child]] : [])], total: bk.adults * FERRY.adult + bk.children * FERRY.child };
+  return { lines: [[`${rm(FERRY.adult)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * FERRY.adult], ...(bk.children ? [[`${rm(FERRY.child)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * FERRY.child]] : [])], total: bk.adults * FERRY.adult + bk.children * FERRY.child };
+}
+
+function bkPriceOther() {
   if (bk.mode === "ground") {
     const p = bkItem().price;
     if (!p) return { lines: [], total: null };
@@ -758,7 +784,7 @@ function renderBooking() {
         <h3 class="bk__title" id="bkTitle">${esc(it.name)}</h3>
         <p class="bk__sub">${it.sub}</p>
       </div>
-      ${bk.mode === "ferry" ? ferryTripSummary() : bk.mode === "airport" ? airportTripSummary() : `<div class="bk__grid">
+      ${bk.mode === "ferry" ? ferryTripSummary() + (payMode() ? ferryAddonPicker() : "") : bk.mode === "airport" ? airportTripSummary() : `<div class="bk__grid">
         <label class="bk__f">${hotel ? "Check-in" : "Depart"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
         <label class="bk__f">${hotel ? "Check-out" : "Return"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
       </div>
@@ -793,6 +819,31 @@ function renderBooking() {
       <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? `${PAY.test ? "<b>Test mode:</b> no real money is taken. " : ""}Secure payment by HitPay: FPX online banking, DuitNow QR, e-wallet or card. A ${PAY.feePercent}% transaction fee applies to every online payment. Your confirmation and e-ticket are emailed after payment. By paying you agree to our <a href="terms.html" target="_blank" rel="noopener">booking terms</a>.` : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
 }
+
+// Book a ferry: optional snorkeling trip(s), same tick-list dropdown as the hotel add-ons
+const ferryAddonSummary = () => {
+  const names = FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).map(a => a.name.replace(" Snorkeling Trip", ""));
+  return names.length ? names.join(", ") + " snorkeling" : "Select a trip";
+};
+function ferryAddonPicker() {
+  return `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on snorkeling trip (optional)</span><strong id="bkFAddonVal">${ferryAddonSummary()}</strong></summary>
+    <div class="bk__ddlist">${FERRY_ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkfaddon="${a.id}"${bk.ferryAddons?.has(a.id) ? " checked" : ""}><span>${a.name}</span><small>Adult ${rm(a.adult)} · Child ${rm(a.child)}</small></label>`).join("")}</div></details>
+    <div id="bkFAddonPax">${ferryAddonPax()}</div>
+    <small class="bk__hint">Choose how many people join each trip. We'll WhatsApp you to set the trip day.</small>`;
+}
+// One row per chosen trip: how many adults / children join it (up to the number on the ferry booking)
+function ferryAddonPax() {
+  return FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).map(a => {
+    const n = bk.ferryAddons.get(a.id);
+    const box = (key, label, max) => `<label class="bk__f">${label}<input type="number" name="fa-${key}-${a.id}" inputmode="numeric" min="0" max="${max}" value="${n[key]}"></label>`;
+    return `<div class="bk__fapax"><p class="bk__lbl">${a.name}</p><div class="bk__grid">${box("adults", "Adults", bk.adults)}${bk.children ? box("children", "Children (1–9 years)", bk.children) : ""}</div></div>`;
+  }).join("");
+}
+const refreshFerryTotals = () => {
+  const price = bkPrice();
+  if ($("bkSum")) $("bkSum").innerHTML = bkSumHTML(price);
+  const go = bkSheet.querySelector(".bk__go"); if (go && price.total != null) go.textContent = `Pay now · ${rm(payTotal(price.total))}`;
+};
 
 // Add-on dropdown label: "Select activities", or the chosen names
 function addonSummary() {
@@ -859,6 +910,9 @@ function renderBookingDone(it) {
 }
 
 function bkValidate() {
+  if (bk.mode === "ferry" && bk.ferryAddons) {
+    for (const [id, n] of bk.ferryAddons) if (n.adults + n.children < 1) return `Enter how many people join the ${FERRY_ADDONS.find(a => a.id === id).name}, or untick it.`;
+  }
   if (bk.mode === "airport") {
     const a = bk.air, has = (k) => String(bk[k] || "").trim().length >= 2;
     if (!a.isAirport && (bk.address || "").trim().length < 4) return `Please enter your hotel or address in ${a.city}.`;
@@ -909,7 +963,8 @@ function payPayload() {
         depAirline: airLeaves(a) ? f("depAirline") : "", depFlight: airLeaves(a) ? f("depFlight").toUpperCase() : "" } : { address: f("address") }) };
   }
   return { type: "ferry", trip: bk.oneway ? "oneway" : "return", direction: bk.toJetty ? "toJetty" : "toIsland",
-    date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who, promo: bk.promoApplied?.code || "" };
+    date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who, promo: bk.promoApplied?.code || "",
+    addons: [...(bk.ferryAddons || new Map())].map(([id, n]) => ({ id, adults: n.adults, children: n.children })).filter(a => a.adults + a.children > 0) };
 }
 
 // Returns { url, reference } on success, { unavailable: true } when payment isn't set up, or { error }
@@ -987,12 +1042,32 @@ bkSheet.addEventListener("click", (e) => {
   if (e.target === bkSheet || e.target.closest("[data-bkclose]")) { bkSheet.close(); return; }
   const pr = e.target.closest("[data-promo]");
   if (pr) { pr.dataset.promo === "remove" ? Object.assign(bk, { promoApplied: null, promoMsg: "", promoCode: "" }) && renderBooking() : applyPromo(); return; }
+  const fa = e.target.closest("[data-bkfaddon]");
+  if (fa) {
+    const v = fa.dataset.bkfaddon;
+    fa.checked ? bk.ferryAddons.set(v, { adults: bk.adults, children: bk.children }) : bk.ferryAddons.delete(v);
+    $("bkFAddonVal").textContent = ferryAddonSummary();
+    $("bkFAddonPax").innerHTML = ferryAddonPax();
+    refreshFerryTotals();
+    return;
+  }
   const add = e.target.closest("[data-bkaddon]");
   if (add) { const v = add.dataset.bkaddon; add.checked ? bk.addons.add(v) : bk.addons.delete(v); $("bkAddonVal").textContent = addonSummary(); }
 });
 bkSheet.addEventListener("input", (e) => {
   const n = e.target.name;
   if (!n) return;
+  const fm = n.match(/^fa-(adults|children)-(\w+)$/);
+  if (fm) {
+    const cur = bk.ferryAddons.get(fm[2]);
+    if (cur) {
+      const max = fm[1] === "adults" ? bk.adults : bk.children;
+      cur[fm[1]] = Math.min(paxNum(e.target.value), max);
+      if (e.target.value !== "" && paxNum(e.target.value) > max) e.target.value = String(max);
+      refreshFerryTotals();
+    }
+    return;
+  }
   if (n === "adults" || n === "children") {
     bk[n] = paxNum(e.target.value);
     const price = bkPrice();
