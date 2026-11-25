@@ -3,11 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="canonical" href="https://cucimatoperhentianisland.my/">
+  <meta property="og:url" content="https://cucimatoperhentianisland.my/">
+  <script>
+    // One address for everyone: the old GitHub Pages copy and cucimato.pages.dev move to the real domain
+    // (keeps the page and anything after it; the payment API on pages.dev is not affected).
+    (function () {
+      var h = location.hostname;
+      if (h.endsWith("github.io") || h === "cucimato.pages.dev") {
+        location.replace("https://cucimatoperhentianisland.my" + location.pathname.replace(/^\/cucimato-perhentian/, "").replace(/\.html$/, "") + location.search + location.hash);
+      }
+    })();
+  </script>
   <title>Cucimato | Perhentian Island Packages</title>
   <meta name="description" content="Perhentian Island holiday packages by Cucimato: accommodation, snorkeling, return boat transfer and lunch. Book directly on WhatsApp.">
   <meta property="og:title" content="Cucimato | Perhentian Island Packages">
   <meta property="og:description" content="Perhentian Island ferry tickets, hotels and packages.">
-  <meta property="og:image" content="images/photos/hero-map.webp">
+  <meta property="og:image" content="https://cucimatoperhentianisland.my/images/photos/hero-map.webp">
   <script>
     // Intro plays once per visit (per browser tab session); skipped for reduced motion.
     try {
