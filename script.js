@@ -1504,22 +1504,38 @@ document.querySelectorAll("[data-prices]").forEach(el => {
     <p class="ptable__note">Online payments add a ${PAY.feePercent}% transaction fee, shown before you pay.</p>`;
 });
 
-/* Hero tab bar slides sideways on small screens: keep the chosen tab in view */
+/* Hero tab bar slides sideways on small screens: the chosen tab sits in the middle of the bar.
+   Side padding lets even the first and last tab reach the centre; desktop (all tabs fit) is unchanged. */
 (() => {
   const bar = document.querySelector(".hero__tabs");
   if (!bar) return;
-  const reveal = () => {
+  const tabs = () => [...bar.querySelectorAll(".htab")];
+  const centre = (smooth) => {
     const t = bar.querySelector('.htab[aria-selected="true"]');
-    if (!t || bar.scrollWidth <= bar.clientWidth) return;
-    const first = t === bar.querySelector(".htab");  // first tab: slide right back to the logo
-    const left = first ? 0 : t.offsetLeft - 8, right = t.offsetLeft + t.offsetWidth + 36;
-    if (left < bar.scrollLeft) bar.scrollTo({ left, behavior: "smooth" });
-    else if (right > bar.scrollLeft + bar.clientWidth) bar.scrollTo({ left: right - bar.clientWidth, behavior: "smooth" });
+    if (!t || !bar.classList.contains("is-sliding")) return;
+    const x = t.offsetLeft + t.offsetWidth / 2 - bar.clientWidth / 2;
+    if (smooth) bar.scrollTo({ left: x, behavior: "smooth" }); else bar.scrollLeft = x;
   };
-  new MutationObserver(reveal).observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
-  // hide the right-edge fade once there is nothing more to slide
-  const edge = () => bar.classList.toggle("is-end", bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 2);
+  const layout = () => {
+    bar.style.paddingLeft = bar.style.paddingRight = "";
+    const sliding = bar.scrollWidth > bar.clientWidth + 1;
+    bar.classList.toggle("is-sliding", sliding);
+    if (sliding) {
+      const all = tabs(), first = all[0], last = all[all.length - 1];
+      bar.style.paddingLeft = Math.max(6, (bar.clientWidth - first.offsetWidth) / 2) + "px";
+      bar.style.paddingRight = Math.max(6, (bar.clientWidth - last.offsetWidth) / 2) + "px";
+    }
+    centre(false); edge();
+  };
+  // soft fades show there is more to slide on either side
+  const edge = () => {
+    bar.classList.toggle("is-start", bar.scrollLeft <= 2);
+    bar.classList.toggle("is-end", bar.scrollLeft + bar.clientWidth >= bar.scrollWidth - 2);
+  };
+  new MutationObserver(() => centre(true)).observe(bar, { subtree: true, attributes: true, attributeFilter: ["aria-selected"] });
   bar.addEventListener("scroll", edge, { passive: true });
-  addEventListener("resize", edge);
-  reveal(); edge();
+  addEventListener("resize", layout);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(layout);   // tab widths change once fonts load
+  addEventListener("load", layout);
+  layout(); requestAnimationFrame(layout);
 })();

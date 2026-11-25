@@ -894,3 +894,8 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 /* Hero promo slide is a link (opens Book a ferry) */
 .hero__promo { display: block; height: 100%; }
 .hero__promo picture, .hero__promo img { display: block; width: 100%; height: 100%; }
+
+/* Sliding tab bar: the chosen tab sits in the middle; half-visible neighbours show there is more to swipe */
+.hero__tabs.is-sliding { scroll-snap-type: x proximity; }
+.hero__tabs.is-sliding .htab { scroll-snap-align: center; }
+.hero__tabs.is-sliding::after { display: none; }
