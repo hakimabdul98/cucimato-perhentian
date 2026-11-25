@@ -338,15 +338,21 @@ renderBento();
    poster. price: null = "Price on request".
    ========================================================= */
 const GROUND_TRIPS = [
-  { id: "perhentian", name: "Ferry + Perhentian Island Snorkeling Trip", img: "ground-perhentian", pos: "50% 30%", price: 130 },
-  { id: "rawa", name: "Ferry + Rawa Island Snorkeling Trip", img: "ground-rawa", pos: "50% 55%", price: 150 },
-  { id: "redang", name: "Ferry + Redang Island Snorkeling Trip", img: "ground-redang", pos: "50% 60%", price: null },
+  { id: "perhentian", name: "Ferry + Perhentian Island Snorkeling Trip", img: "ground-perhentian", pos: "50% 30%", price: 135,
+    snorkel: "5 Points Snorkeling Activity (Turtle, Fish, Corals & Refreshing Water)" },
+  { id: "rawa", name: "Ferry + Rawa Island Snorkeling Trip", img: "ground-rawa", pos: "50% 55%", price: 155,
+    snorkel: "4 Points Snorkeling Activity (Rawa Island, Serenggeh Island, Bird Temple & Romantic Beach)" },
+  { id: "redang", name: "Ferry + Redang Island Snorkeling Trip", img: "ground-redang", pos: "50% 60%", price: 200,
+    snorkel: "7 Points Snorkeling Activity (Turtle, Fish, Redang Island, Lang Tengah Island)" },
 ];
+// Same for every trip; "{snorkel}" is replaced with that trip's snorkeling line
 const GROUND_INCLUDES = [
   "Minimum stay 2D1N",
   "Resorts or hotels around Perhentian Island (book your own stay)",
   "Round trip transfer boat",
-  "Snorkeling activity",
+  "{snorkel}",
+  "Snorkeling Guide",
+  "Snorkeling Equipment Provided",
   "Free gift",
 ];
 
@@ -371,16 +377,15 @@ function renderGround() {
 
 function openGroundInfo(id) {
   const t = GROUND_TRIPS.find(x => x.id === id);
-  const priced = GROUND_TRIPS.filter(x => x.price);
   showInfo(`
-    <div class="pinfo__poster"><img src="images/posters/boat-snorkeling.webp" alt="Boat Service and Snorkeling poster"></div>
+    <!-- Trip photo for now; swap back to a poster once the new one (with current prices) is ready -->
+    <div class="pinfo__poster pinfo__poster--photo"><img src="images/photos/${t.img}.webp" alt="${t.name}" style="object-position:${t.pos}"></div>
     <div class="pinfo__text">
       <h3 id="pinfoName">${t.name}</h3>
       <p class="pinfo__tags">Ground Package | Self Hotel Booking</p>
-      <ul class="pinfo__list">${GROUND_INCLUDES.map(x => `<li>${x}</li>`).join("")}</ul>
+      <ul class="pinfo__list">${GROUND_INCLUDES.map(x => `<li>${x === "{snorkel}" ? t.snorkel : x}</li>`).join("")}</ul>
       <div class="pinfo__prices">
         <div><small>This trip, per adult</small><strong>${t.price ? rm(t.price) : "On request"}</strong></div>
-        <div><small>${priced.map(o => o.name.replace("Ferry + ", "").replace(" Snorkeling Trip", "")).join(" / ")}</small><strong>${priced.map(o => rm(o.price)).join(" / ")}</strong></div>
       </div>
       <p class="pinfo__inc">Guide · Snorkeling · Sea transfer</p>
       <button type="button" class="btn" data-book="ground" data-id="${t.id}">Book Now</button>

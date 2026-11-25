@@ -327,6 +327,7 @@ button.ffield:hover, button.ffield[aria-expanded="true"] { border-color: var(--i
 .pinfo__body { display: grid; grid-template-columns: 1fr 1fr; }
 .pinfo__poster { background: var(--soft); }
 .pinfo__poster img { width: 100%; height: 100%; object-fit: contain; }
+.pinfo__poster--photo img { object-fit: cover; }
 .pinfo__text { padding: 32px 28px; display: flex; flex-direction: column; gap: 14px; }
 .pinfo__text h3 { font-family: var(--font-nav); font-weight: 600; font-size: 26px; letter-spacing: -.02em; padding-right: 32px; }
 .pinfo__tags { color: var(--muted); font-size: 14px; }
