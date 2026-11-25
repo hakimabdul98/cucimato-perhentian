@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;800&family=Righteous&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=64">
+  <link rel="stylesheet" href="style.css?v=66">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
 </head>
 <body>
@@ -58,7 +58,7 @@
       <a href="#book-ferry" data-tab-link="ferry">Book Ferry Ticket</a>
       <a href="#airport-transfer" data-tab-link="airport">Book Airport Transfer</a>
       <a href="#hotel-packages" data-tab-link="hotel">Hotel + Packages</a>
-      <a href="#ferry-schedule" data-tab-link="schedule">Ferry Schedule</a>
+      <a href="#ferry-schedule" data-tab-link="schedule">Ferry Info</a>
       <a href="#gallery">Gallery</a>
       <a href="#about">About Us</a>
     </nav>
@@ -102,12 +102,11 @@
         </div>
       </figure>
       <div class="hero__tabs" role="tablist" aria-label="What would you like to do?">
-        <span class="hero__tabs-logo" aria-hidden="true"><img src="images/brand/cucimato-logo-dark.webp" alt="" width="800" height="587"></span>
         <button type="button" class="htab" role="tab" aria-selected="true" data-tab="ferry">Book a ferry</button>
         <button type="button" class="htab" role="tab" aria-selected="false" data-tab="airport">Airport Transfer</button>
         <button type="button" class="htab" role="tab" aria-selected="false" data-tab="hotel">Hotel + Packages</button>
         <button type="button" class="htab" role="tab" aria-selected="false" data-tab="ground">Ground Packages</button>
-        <button type="button" class="htab" role="tab" aria-selected="false" data-tab="schedule">Ferry Schedule</button>
+        <button type="button" class="htab" role="tab" aria-selected="false" data-tab="schedule">Ferry Info</button>
       </div>
 
       <!-- Book a ferry panel (shown when the "Book a ferry" tab is active) -->
@@ -284,14 +283,36 @@
         <div class="bento bento--3" id="bentoGround"></div>
       </div>
 
-      <!-- Ferry Schedule panel (shown when the "Ferry Schedule" tab is active) -->
-      <div class="hpanel" id="panel-schedule" role="tabpanel" aria-label="Ferry Schedule" hidden>
+      <!-- Ferry Info panel (shown when the "Ferry Info" tab is active): schedules + prices -->
+      <div class="hpanel" id="panel-schedule" role="tabpanel" aria-label="Ferry Info" hidden>
         <h2 class="hpanel__title">Ferry Schedule</h2>
         <div class="sched" data-sched></div>
         <h2 class="hpanel__title hpanel__title--next">Airport Transfer Schedule</h2>
         <div class="sched" data-asched></div>
         <h2 class="hpanel__title hpanel__title--next">Ferry &amp; Airport Transfer Prices</h2>
         <div class="sched__block sched__prices" data-prices></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Things to explore: snorkeling trips and hotel packages as swipe rows, visible without opening a tab
+       (Malaysia Airlines "Explore our top destinations" style). Cards come from GROUND_TRIPS / HOTEL_PACKAGES. -->
+  <section class="section explore-sec" id="explore">
+    <div class="wrap">
+      <h2 class="explore__title">Things to explore <span>on Perhentian Island</span></h2>
+      <div class="xrow" data-xrow="ground">
+        <div class="xrow__head">
+          <h3 class="xrow__title">Snorkeling trips</h3>
+          <div class="xrow__nav"><button type="button" class="gnav" data-xprev aria-label="Previous snorkeling trips">‹</button><button type="button" class="gnav" data-xnext aria-label="More snorkeling trips">›</button></div>
+        </div>
+        <div class="xtrack" id="xGround"></div>
+      </div>
+      <div class="xrow" data-xrow="hotel">
+        <div class="xrow__head">
+          <h3 class="xrow__title">Hotel + Packages</h3>
+          <div class="xrow__nav"><button type="button" class="gnav" data-xprev aria-label="Previous hotel packages">‹</button><button type="button" class="gnav" data-xnext aria-label="More hotel packages">›</button></div>
+        </div>
+        <div class="xtrack" id="xHotel"></div>
       </div>
     </div>
   </section>
@@ -413,6 +434,6 @@
   <div id="bkBody"></div>
 </dialog>
 
-<script src="script.js?v=62"></script>
+<script src="script.js?v=64"></script>
 </body>
 </html>

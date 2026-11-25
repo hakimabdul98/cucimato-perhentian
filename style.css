@@ -856,3 +856,37 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 /* Booking season: off-season days are faded but tappable (they show the off-season note) */
 .cal__day.is-off { color: #c4c7cc; text-decoration: line-through; text-decoration-color: #dcdfe3; }
 .fcal__hint.is-off { color: #b42318; font-weight: 500; }
+
+/* ---------- Things to explore: swipe rows (MH "Explore our top destinations" layout, our cards) ---------- */
+.explore-sec { padding: 88px 0 72px; }
+.explore__title { font-family: var(--font-nav); font-weight: 600; font-size: clamp(28px, 3.6vw, 44px); letter-spacing: -.025em; line-height: 1.1; text-align: center; margin: 0 0 36px; }
+.explore__title span { display: block; color: var(--muted); font-weight: 500; font-size: .55em; letter-spacing: -.01em; margin-top: 8px; }
+.xrow + .xrow { margin-top: 36px; }
+.xrow__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.xrow__title { font-family: var(--font-nav); font-weight: 600; font-size: 20px; letter-spacing: -.01em; margin: 0; }
+.xrow__nav { display: flex; gap: 8px; }
+.xrow__nav .gnav:disabled { opacity: .35; cursor: default; }
+.xtrack { display: flex; gap: 14px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 0; padding-bottom: 6px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+.xtrack::-webkit-scrollbar { display: none; }
+.xcard { flex: 0 0 calc((100% - 28px) / 3.25); height: 380px; scroll-snap-align: start; }
+.xcard .bcard__actions { width: 100%; }
+.xcard .bbtn { flex: 1; justify-content: center; }
+@media (max-width: 1000px) { .xcard { flex-basis: calc((100% - 14px) / 2.2); height: 360px; } }
+@media (max-width: 600px) {
+  .explore-sec { padding: 64px 0 48px; }
+  .explore__title { margin-bottom: 26px; }
+  .xcard { flex-basis: 82%; height: 380px; }
+  .xrow__nav { display: none; }   /* phones swipe */
+}
+@media (min-width: 601px) { .xtrack--fit .xcard { flex: 1 1 0; } .xtrack--fit + * { } }
+
+/* Ferry Info: compact time boxes (one line "8:00 AM") so the schedules fit without much scrolling;
+   departure and return stay side by side from tablet width up */
+.sched__slot { aspect-ratio: auto; height: 46px; flex-direction: row; gap: 4px; border-radius: 9px; }
+.sched__slot b { font-size: 15px; }
+.sched__slot span { font-size: 11px; }
+.sched__grid { margin-top: 12px; gap: 6px; }
+.sched__block { padding: 16px 18px; }
+@media (max-width: 760px) { .sched__slot { height: 42px; } .sched__slot b { font-size: 14px; } .sched__grid { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 380px) { .sched__slot { flex-direction: column; gap: 0; height: 46px; } }

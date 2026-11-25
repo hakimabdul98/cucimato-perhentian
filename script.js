@@ -416,6 +416,74 @@ $("bentoGround").addEventListener("click", (e) => {
 renderGround();
 
 /* =========================================================
+   Things to explore — swipe rows on the page itself (no tab to open):
+   snorkeling trips and hotel packages, same cards and buttons as the tabs.
+   ========================================================= */
+function renderExplore() {
+  if (!$("xGround")) return;
+  $("xGround").innerHTML = GROUND_TRIPS.map(t => `
+    <article class="bcard xcard">
+      <img src="images/photos/${t.img}.webp" alt="" loading="lazy" style="object-position:${t.pos}">
+      <div class="bcard__body">
+        <div>
+          <div class="bcard__name">${t.name.replace("Ferry + ", "")}</div>
+          <span class="bcard__from">With return ferry, from</span>
+          <span class="bcard__price">${t.price ? rm(t.price) : "Price on request"}</span>
+          ${t.price ? '<span class="bcard__note">per adult</span>' : ""}
+        </div>
+        <div class="bcard__actions">
+          <button type="button" class="bbtn bbtn--solid" data-book="ground" data-id="${t.id}">Book Now</button>
+          <button type="button" class="bbtn bbtn--ghost" data-ginfo="${t.id}">More Info</button>
+        </div>
+      </div>
+    </article>`).join("");
+  $("xGround").classList.toggle("xtrack--fit", GROUND_TRIPS.length <= 3);   // few cards: fill the row on desktop
+  $("xHotel").innerHTML = HOTEL_PACKAGES.map(p => `
+    <article class="bcard xcard">
+      <img src="images/photos/${p.id}-main.webp" alt="" loading="lazy">
+      <div class="bcard__body">
+        <div>
+          <div class="bcard__name">${p.name}</div>
+          <span class="bcard__from">2D1N from</span>
+          <span class="bcard__price">${p.p2d1n ? rm(p.p2d1n) : "Stay tuned"}</span>
+        </div>
+        <div class="bcard__actions">
+          <button type="button" class="bbtn bbtn--solid" data-book="hotel" data-id="${p.id}">Check availability</button>
+          <button type="button" class="bbtn bbtn--ghost" data-pinfo="${p.id}">More Info</button>
+        </div>
+      </div>
+    </article>`).join("");
+}
+renderExplore();
+(() => {
+  const sec = $("explore");
+  if (!sec) return;
+  // arrows move one card; they fade out at the ends
+  const sync = (row) => {
+    const t = row.querySelector(".xtrack");
+    row.querySelector("[data-xprev]").disabled = t.scrollLeft < 4;
+    row.querySelector("[data-xnext]").disabled = t.scrollLeft + t.clientWidth > t.scrollWidth - 4;
+  };
+  sec.querySelectorAll(".xrow").forEach(row => {
+    const t = row.querySelector(".xtrack");
+    t.addEventListener("scroll", () => sync(row), { passive: true });
+    sync(row);
+  });
+  addEventListener("resize", () => sec.querySelectorAll(".xrow").forEach(sync));
+  sec.addEventListener("click", (e) => {
+    const nav = e.target.closest("[data-xprev], [data-xnext]");
+    if (nav) {
+      const t = nav.closest(".xrow").querySelector(".xtrack");
+      const step = t.querySelector(".xcard").getBoundingClientRect().width + 14;
+      t.scrollBy({ left: nav.hasAttribute("data-xnext") ? step : -step, behavior: "smooth" });
+      return;
+    }
+    const g = e.target.closest("[data-ginfo]"); if (g) { openGroundInfo(g.dataset.ginfo); return; }
+    const p = e.target.closest("[data-pinfo]"); if (p) openPkgInfo(p.dataset.pinfo);
+  });
+})();
+
+/* =========================================================
    Ferry Schedule
    ========================================================= */
 const FERRY_SCHEDULE = {
