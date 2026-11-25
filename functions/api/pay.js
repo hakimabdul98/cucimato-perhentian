@@ -51,8 +51,14 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Hand the trip details to the booking app now; it confirms them once HitPay says "paid".
-  const pick = ["type", "trip", "direction", "airport", "service", "date", "returnDate", "time", "returnTime", "adults", "children", "pax"];
+  const pick = ["type", "trip", "direction", "airport", "service", "date", "returnDate", "time", "returnTime", "adults", "children"];
   const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
+  // Airport extras: passengers and vehicle as priced here, plus flight details / city address from the customer
+  if (body.type === "airport") {
+    booking.pax = q.summary.pax; booking.vehicle = q.summary.vehicle;
+    for (const k of ["arrAirline", "arrFlight", "depAirline", "depFlight"]) booking[k] = clean(body[k], 40);
+    booking.address = clean(body.address, 160);
+  }
   const app = await tellBookingApp({ stage: "created", paymentId: data.id, reference, amount: q.amount, booking: { ...booking, name, email, phone } });
   console.log("payment request", reference, data.id, q.amount, "booking app", app);
   return json({ url: data.url, id: data.id, reference, amount: q.amount });

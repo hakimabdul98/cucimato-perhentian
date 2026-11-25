@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;800&family=Righteous&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=54">
+  <link rel="stylesheet" href="style.css?v=57">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
 </head>
 <body>
@@ -169,11 +169,11 @@
 
           <a class="btn fpanel__go" id="fGo" role="button" target="_blank" rel="noopener" aria-disabled="true">Select dates</a>
         </div>
-        <p class="fpanel__note">Return trip · Adult RM80 · Child RM40 · Departures 8am–5pm, changes confirmed on WhatsApp</p>
+        <p class="fpanel__note">Return trip · Adult RM80 · Child RM50 · Departures 8am–5pm, changes confirmed on WhatsApp</p>
       </div>
 
       <!-- Airport Transfer panel (shown when the "Airport Transfer" tab is active).
-           Airports, services and prices live in AIRPORT (script.js); booking goes to WhatsApp. -->
+           Places, services and prices live in AIRPORT (script.js) and functions/_lib/pricing.js. -->
       <div class="fpanel apanel" id="panel-airport" role="tabpanel" aria-label="Airport Transfer" hidden>
         <div class="apanel__opts">
           <div class="ftrip" role="radiogroup" aria-label="Trip type">
@@ -238,10 +238,23 @@
             <small>Transfer</small>
             <select id="aType" aria-label="Transfer type"></select>
           </label>
-          <label class="ffield afield is-empty afield--pax">
-            <small>Passengers</small>
-            <input type="number" id="aPax" inputmode="numeric" min="1" max="99" placeholder="Enter number" aria-label="Number of passengers">
-          </label>
+          <!-- Passengers: same typed Adult / Child popover as Book a ferry -->
+          <div class="fpop-wrap apax">
+            <button type="button" class="ffield is-empty" id="aPaxBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="aPaxPop">
+              <small>Passengers</small><strong id="aPaxVal">Enter number</strong>
+            </button>
+            <div class="fpop fpop--pax" id="aPaxPop" role="dialog" aria-label="Passengers" hidden>
+              <label class="guest">
+                <div><strong>Adult</strong><small>10 years and above</small></div>
+                <input class="paxin" type="number" id="aAdultsIn" data-apax="adults" inputmode="numeric" min="1" max="30" placeholder="e.g. 2" aria-label="Number of adults">
+              </label>
+              <label class="guest">
+                <div><strong>Child</strong><small>1–9 years old · leave empty if none</small></div>
+                <input class="paxin" type="number" id="aChildrenIn" data-apax="children" inputmode="numeric" min="0" max="30" placeholder="0" aria-label="Number of children">
+              </label>
+              <div class="fpop__foot"><button type="button" class="btn btn--sm" data-apaxclose>Done</button></div>
+            </div>
+          </div>
           <a class="btn fpanel__go" id="aGo" role="button" target="_blank" rel="noopener" aria-disabled="true">Choose airport</a>
         </form>
         <p class="fpanel__note" id="aNote"></p>
@@ -263,6 +276,7 @@
       <div class="hpanel" id="panel-schedule" role="tabpanel" aria-label="Ferry Schedule" hidden>
         <h2 class="hpanel__title">Ferry Schedule</h2>
         <div class="sched" data-sched></div>
+        <div class="sched__block sched__prices" data-prices></div>
       </div>
     </div>
   </section>
@@ -384,6 +398,6 @@
   <div id="bkBody"></div>
 </dialog>
 
-<script src="script.js?v=49"></script>
+<script src="script.js?v=53"></script>
 </body>
 </html>

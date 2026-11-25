@@ -41,7 +41,7 @@ if (fromHash) selectTab(fromHash);
    ========================================================= */
 const FERRY = {
   adult: 80,
-  child: 40,                                // child = 1–9 years old
+  child: 50,                                // child = 1–9 years old
   departWindow: "8am–5pm",                  // to the island: confirmed on WhatsApp
   departTimes: ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM"], // to the island
   returnTimes: ["8:00 AM", "12:00 PM", "4:00 PM"],
@@ -49,7 +49,7 @@ const FERRY = {
   maxMonthsAhead: 6,
   closedMonths: [],                         // e.g. [11, 12, 1, 2] to block monsoon months
   maxGuests: 30,
-  oneWay: { adult: 40, child: 20 },         // one-way price (either direction); null = "Price on request"
+  oneWay: { adult: 40, child: 25 },         // one-way price (either direction); null = "Price on request"
 };
 
 const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -696,7 +696,7 @@ const fromIso = (s) => { const [y, m, d] = s.split("-").map(Number); return new 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 function bkItem() {
-  if (bk.mode === "airport") { const a = bk.air; return { name: `Airport Transfer (${a.trip === "oneway" ? "One-way" : "Return"})`, img: "about-sea", pos: "50% 50%", sub: `${a.serviceName} transfer: ${a.pick} → ${a.drop}${a.trip === "oneway" ? "" : " and back"}.` }; }
+  if (bk.mode === "airport") { const a = bk.air; return { name: `Airport Transfer (${a.trip === "oneway" ? "One-way" : "Return"})`, img: "about-sea", pos: "50% 50%", sub: `${a.serviceName} transfer${a.vehicle ? ` (${a.vehicle})` : ""}: ${a.pick} → ${a.drop}${a.trip === "oneway" ? "" : " and back"}.` }; }
   if (bk.mode === "hotel") { const p = HOTEL_PACKAGES.find(x => x.id === bk.id); return { name: p.name, img: `${p.id}-main`, pos: "50% 50%", sub: "Rooms are confirmed with the resort before any payment." }; }
   if (bk.mode === "ground") { const t = GROUND_TRIPS.find(x => x.id === bk.id); return { name: t.name, img: t.img, pos: t.pos, sub: "Return ferry from Kuala Besut Jetty, with snorkeling trip.", price: t.price }; }
   if (bk.oneway) return { name: "Ferry Ticket (One-way)", img: "about-sea", pos: "50% 50%", sub: `One-way ferry: ${ROUTE[bk.toJetty ? "toJetty" : "toIsland"].join(" → ")}.` };
@@ -714,7 +714,7 @@ function openBooking(mode, id = "") {
 }
 
 function bkPrice() {
-  if (bk.mode === "airport") { const a = bk.air, ways = a.trip === "oneway" ? 1 : 2; return { lines: [[`${rm(a.price)} × ${a.pax} passenger${a.pax > 1 ? "s" : ""} × ${ways} way${ways > 1 ? "s" : ""}`, a.price * a.pax * ways]], total: a.price * a.pax * ways }; }
+  if (bk.mode === "airport") return { lines: bk.air.lines, total: bk.air.total };
   if (bk.mode === "ferry" && bk.oneway) {
     const o = FERRY.oneWay;
     if (o.adult == null) return { lines: [], total: null };
@@ -773,6 +773,7 @@ function renderBooking() {
             <label class="bk__f"><span class="sr-only">WhatsApp number</span><input type="tel" name="phone" value="${esc(bk.phone)}" placeholder="12 345 6789" autocomplete="tel-national" inputmode="tel" required></label>
           </div>
           <label class="bk__f"><span class="sr-only">Email</span><input type="email" name="email" value="${esc(bk.email)}" placeholder="Email (for your invoice)" autocomplete="email" required></label>
+          ${bk.mode === "airport" ? airportExtraFields() : ""}
         </div></div>
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
@@ -804,9 +805,23 @@ function airportTripSummary() {
   return `<div class="bk__trip">
     <div><small>Pick-up</small><strong>${shortDate(fromIso(a.date))} · ${a.time}</strong></div>
     ${a.trip === "oneway" ? `<div><small>Trip</small><strong>One-way, ${a.serviceName}</strong></div>` : `<div><small>Return pick-up</small><strong>${shortDate(fromIso(a.returnDate))} · ${a.returnTime}</strong></div>`}
-    <div><small>Passengers</small><strong>${a.pax}</strong></div>
+    <div><small>Passengers</small><strong>${paxLabel(a.adults, a.children)}</strong></div>
     <button type="button" class="bk__change" data-bkclose>Change</button>
   </div>`;
+}
+
+// Airport: flight details (so the driver can follow the flight), or the hotel/address for a city pick-up
+const airArrives = (a) => a.trip === "return" || a.fromAirport;   // a leg starts at the airport/city
+const airLeaves = (a) => a.trip === "return" || !a.fromAirport;   // a leg ends at the airport/city
+function airportExtraFields() {
+  const a = bk.air;
+  if (!a.isAirport) return `<label class="bk__f">Hotel or address in ${esc(a.city)}<input type="text" name="address" value="${esc(bk.address || "")}" placeholder="Where we pick you up / drop you off" autocomplete="street-address" required></label>`;
+  const flight = (key, label) => `<div><p class="bk__lbl">${label}</p><div class="bk__grid">
+      <label class="bk__f"><span class="sr-only">Flight number</span><input type="text" name="${key}Flight" value="${esc(bk[key + "Flight"] || "")}" placeholder="Flight number" autocomplete="off" autocapitalize="characters" required></label>
+      <label class="bk__f"><span class="sr-only">Airline</span><input type="text" name="${key}Airline" list="bkAirlines" value="${esc(bk[key + "Airline"] || "")}" placeholder="Airline" autocomplete="off" required></label>
+    </div><small class="bk__hint">e.g. AK6220 · AirAsia</small></div>`;
+  return `${airArrives(a) ? flight("arr", `Arrival flight · landing at ${esc(a.place)}`) : ""}${airLeaves(a) ? flight("dep", `Departure flight · from ${esc(a.place)}`) : ""}
+    <datalist id="bkAirlines">${AIRPORT.airlines.map(x => `<option value="${x}">`).join("")}</datalist>`;
 }
 
 // Opened by the Airport Transfer panel when the trip has an online price
@@ -832,6 +847,12 @@ function renderBookingDone(it) {
 }
 
 function bkValidate() {
+  if (bk.mode === "airport") {
+    const a = bk.air, has = (k) => String(bk[k] || "").trim().length >= 2;
+    if (!a.isAirport && (bk.address || "").trim().length < 4) return `Please enter your hotel or address in ${a.city}.`;
+    if (a.isAirport && airArrives(a) && (!has("arrAirline") || !has("arrFlight"))) return "Please enter your arrival flight number and airline.";
+    if (a.isAirport && airLeaves(a) && (!has("depAirline") || !has("depFlight"))) return "Please enter your departure flight number and airline.";
+  }
   if (bk.mode !== "airport") {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
@@ -864,8 +885,11 @@ function payPayload() {
   const who = { name: bk.name.trim(), email: bk.email.trim(), phone: bkPhone() };
   if (bk.mode === "airport") {
     const a = bk.air;
+    const f = (k) => String(bk[k] || "").trim();
     return { type: "airport", trip: a.trip, airport: a.code, service: a.service, direction: a.fromAirport ? "fromAirport" : "toAirport",
-      date: a.date, returnDate: a.returnDate, time: a.time, returnTime: a.returnTime, pax: a.pax, ...who };
+      date: a.date, returnDate: a.returnDate, time: a.time, returnTime: a.returnTime, adults: a.adults, children: a.children, ...who,
+      ...(a.isAirport ? { arrAirline: airArrives(a) ? f("arrAirline") : "", arrFlight: airArrives(a) ? f("arrFlight").toUpperCase() : "",
+        depAirline: airLeaves(a) ? f("depAirline") : "", depFlight: airLeaves(a) ? f("depFlight").toUpperCase() : "" } : { address: f("address") }) };
   }
   return { type: "ferry", trip: bk.oneway ? "oneway" : "return", direction: bk.toJetty ? "toJetty" : "toIsland",
     date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who };
@@ -966,62 +990,89 @@ bkSheet.addEventListener("input", (e) => {
 bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
 
 /* =========================================================
-   Airport Transfer — Kota Bharu (KBR) / Kuala Terengganu (TGG) <-> Kuala Besut Jetty
-   price: RM per person, per way, per service. null = not set yet -> "Price on request".
-   Return = 2 ways. Kuala Terengganu is private only. Booking is sent to WhatsApp.
+   Airport Transfer — Kota Bharu / Kuala Terengganu (airport or city) <-> Kuala Besut Jetty
+   shared:  RM per person, per way (null = no shared van there). Min 2 passengers, fixed times.
+   private: RM per vehicle, per way (published rate + RM20), one price per size in vehicles[].
+   Return = 2 ways. Keep in step with functions/_lib/pricing.js (the server works the price out again).
    ========================================================= */
 const AIRPORT_REQUEST_MSG = "Hi Cucimato! I have a special request for my airport transfer.\nDate: \nNumber of passengers: \nMy request: ";
 const AIRPORT = {
   jetty: "Kuala Besut Jetty",
-  airports: [
-    { code: "KBR", short: "Kota Bharu (KBR)", name: "Kota Bharu Airport (KBR)", services: ["private", "shared"], price: { private: null, shared: 35 } }, // private: price on WhatsApp for now
-    { code: "TGG", short: "Kuala Terengganu (TGG)", name: "Kuala Terengganu Airport (TGG)", services: ["private"], price: { private: null } },
+  places: [
+    { code: "KBR", short: "KBR Airport", name: "Kota Bharu Airport (KBR)", airport: true, shared: { adult: 35, child: 30 }, private: [130, 215, 265, 315] },
+    { code: "KBC", short: "Kota Bharu City", name: "Kota Bharu City", city: "Kota Bharu", airport: false, shared: { adult: 35, child: 30 }, private: [130, 215, 265, 315] },
+    { code: "TGG", short: "TGG Airport", name: "Kuala Terengganu Airport (TGG)", airport: true, shared: null, private: [200, 275, 325, 375] },
+    { code: "KTC", short: "Kuala Terengganu City", name: "Kuala Terengganu City", city: "Kuala Terengganu", airport: false, shared: null, private: [215, 290, 350, 390] },
   ],
+  vehicles: [{ max: 4, name: "Car (1–4 pax)" }, { max: 8, name: "8-seater van" }, { max: 12, name: "12-seater van" }, { max: 15, name: "15-seater van" }],
   serviceName: { private: "Private", shared: "Shared" },
-  // Pick-up at the airport: estimated time, hourly. Flights should land within this window.
-  airportTimes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"],
+  sharedMin: 2,
+  // Shared van departures (from the airport/city, and from the jetty)
+  sharedTimes: { fromPlace: ["8:00 AM", "11:00 AM", "3:00 PM"], fromJetty: ["9:00 AM", "1:00 PM", "5:00 PM"] },
+  // Private: estimated pick-up at the airport or city, hourly. Flights should land within this window.
+  privateTimes: ["7:00 AM", "8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"],
   flightWindow: "7am and 4pm",
-  // Pick-up at Kuala Besut Jetty (one-way to the airport, and the return leg)
+  // Pick-up at Kuala Besut Jetty (one-way to the airport, and the return leg), after the boats arrive
   jettyTimes: ["9:00 AM", "1:00 PM", "5:00 PM"],
   maxPax: 30,
+  airlines: ["AirAsia", "Malaysia Airlines", "Firefly", "Batik Air"],
 };
+const paxLabel = (a, c) => `${a} Adult${a > 1 ? "s" : ""}${c ? `, ${c} Child${c > 1 ? "ren" : ""}` : ""}`;
+
+// Price of one airport trip: { total, lines, vehicle } or { total: null, why } when it must go to WhatsApp
+function airportQuote(p, type, adults, children, ways) {
+  const n = adults + children, w = ways > 1 ? ` × ${ways} ways` : "";
+  if (type === "shared") {
+    if (!p.shared) return { total: null, why: "noshared" };
+    const lines = [[`${rm(p.shared.adult)} × ${adults} adult${adults > 1 ? "s" : ""}${w}`, p.shared.adult * adults * ways],
+      ...(children ? [[`${rm(p.shared.child)} × ${children} child${children > 1 ? "ren" : ""}${w}`, p.shared.child * children * ways]] : [])];
+    return { total: lines.reduce((s, l) => s + l[1], 0), lines, vehicle: "" };
+  }
+  const v = AIRPORT.vehicles.findIndex(x => n <= x.max);
+  if (v < 0) return { total: null, why: "big" };
+  const one = p.private[v], vehicle = AIRPORT.vehicles[v].name;
+  return { total: one * ways, lines: [[`${vehicle} · ${rm(one)} per way${w}`, one * ways]], vehicle };
+}
 
 (() => {
   if (!$("aForm")) return;
   let payDetails = null;
-  const st = { trip: "oneway", type: "", airport: "", fromAirport: true, date: null, ret: null, picking: "date", time: null, retTime: null };
-  const typeSel = $("aType"), pax = $("aPax"), go = $("aGo"), note = $("aNote");
+  const st = { trip: "oneway", type: "", airport: "", fromAirport: true, date: null, ret: null, picking: "date", time: null, retTime: null, adults: 0, children: 0 };
+  const typeSel = $("aType"), go = $("aGo"), note = $("aNote");
   const oneway = () => st.trip === "oneway";
-  const ap = () => AIRPORT.airports.find(a => a.code === st.airport);
+  const ap = () => AIRPORT.places.find(a => a.code === st.airport);
   let view = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
 
-  // ---------- route: the airport side is a dropdown ("Choose airport"), the jetty side is fixed ----------
-  const airportSelect = () => `<select id="aAirport" aria-label="Airport"><option value="" disabled${st.airport ? "" : " selected"}>Choose airport</option>${AIRPORT.airports.map(a => `<option value="${a.code}"${a.code === st.airport ? " selected" : ""}>${a.short}</option>`).join("")}</select>`;
+  // ---------- route: the airport/city side is a dropdown ("Choose airport"), the jetty side is fixed ----------
+  const airportSelect = () => `<select id="aAirport" aria-label="Airport or city"><option value="" disabled${st.airport ? "" : " selected"}>Choose airport</option>${AIRPORT.places.map(a => `<option value="${a.code}"${a.code === st.airport ? " selected" : ""}>${a.short}</option>`).join("")}</select>`;
   const jettyText = `<strong>${AIRPORT.jetty}</strong>`;
   function drawRoute() {
     $("aPickSlot").innerHTML = st.fromAirport ? airportSelect() : jettyText;
     $("aDropSlot").innerHTML = st.fromAirport ? jettyText : airportSelect();
     $("aPickBox").classList.toggle("ffield--fixed", !st.fromAirport);
     $("aDropBox").classList.toggle("ffield--fixed", st.fromAirport);
-    $("aAirport").addEventListener("change", (e) => { st.airport = e.target.value; drawTypes(); update(); });
+    $("aAirport").addEventListener("change", (e) => { st.airport = e.target.value; drawTypes(); drawSlots(); update(); });
   }
 
-  // ---------- transfer dropdown: only what the chosen airport offers (Kuala Terengganu = private) ----------
+  // ---------- transfer dropdown: only what the place offers (Kuala Terengganu = private) ----------
   function drawTypes() {
     const a = ap();
-    const list = a ? a.services : ["private", "shared"];
+    const list = a && !a.shared ? ["private"] : ["private", "shared"];
     if (!list.includes(st.type)) st.type = list.length === 1 ? list[0] : "";
     typeSel.innerHTML = `<option value="" disabled${st.type ? "" : " selected"}>Select type</option>` +
       list.map(t => `<option value="${t}"${t === st.type ? " selected" : ""}>${AIRPORT.serviceName[t]}${a && list.length === 1 ? " (only option)" : ""}</option>`).join("");
   }
 
-  // ---------- times: same time boxes as Book a ferry ----------
-  const firstTimes = () => st.fromAirport ? AIRPORT.airportTimes : AIRPORT.jettyTimes;
+  // ---------- times: same time boxes as Book a ferry; shared follows the van schedule ----------
+  const shared = () => st.type === "shared";
+  const firstTimes = () => st.fromAirport ? (shared() ? AIRPORT.sharedTimes.fromPlace : AIRPORT.privateTimes) : (shared() ? AIRPORT.sharedTimes.fromJetty : AIRPORT.jettyTimes);
+  const retTimes = () => shared() ? AIRPORT.sharedTimes.fromJetty : AIRPORT.jettyTimes;
   const slotHTML = (list, chosen, key) => list.map(t => `<button type="button" class="slot" role="radio" data-${key}="${t}" aria-checked="${t === chosen}">${t}</button>`).join("");
   function drawSlots() {
     if (!firstTimes().includes(st.time)) st.time = null;
+    if (!retTimes().includes(st.retTime)) st.retTime = null;
     $("aTimeSlots").innerHTML = slotHTML(firstTimes(), st.time, "atime");
-    $("aRetTimeSlots").innerHTML = slotHTML(AIRPORT.jettyTimes, st.retTime, "aret");
+    $("aRetTimeSlots").innerHTML = slotHTML(retTimes(), st.retTime, "aret");
   }
 
   // ---------- calendar: same look and flow as Book a ferry (pick-up date, then return date) ----------
@@ -1052,69 +1103,80 @@ const AIRPORT = {
   }
 
   // ---------- popovers ----------
-  const POPS = { dates: "aDatesPop", time: "aTimePop", ret: "aRetTimePop" };
-  const BTNS = ["aDateBtn", "aRetDateBtn", "aTimeBtn", "aRetTimeBtn"];
+  const POPS = { dates: "aDatesPop", time: "aTimePop", ret: "aRetTimePop", pax: "aPaxPop" };
+  const BTNS = ["aDateBtn", "aRetDateBtn", "aTimeBtn", "aRetTimeBtn", "aPaxBtn"];
   function closeAll() { Object.values(POPS).forEach(p => { $(p).hidden = true; }); BTNS.forEach(b => $(b).setAttribute("aria-expanded", "false")); }
   function open(which) {
     closeAll();
     $(POPS[which]).hidden = false;
-    const btn = which === "dates" ? (st.picking === "ret" ? "aRetDateBtn" : "aDateBtn") : which === "time" ? "aTimeBtn" : "aRetTimeBtn";
+    const btn = which === "dates" ? (st.picking === "ret" ? "aRetDateBtn" : "aDateBtn") : which === "time" ? "aTimeBtn" : which === "ret" ? "aRetTimeBtn" : "aPaxBtn";
     $(btn).setAttribute("aria-expanded", "true");
     if (which === "dates") drawCal();
+    if (which === "pax") setTimeout(() => $("aAdultsIn").focus(), 50);
   }
   const nextStep = () => !st.date || (!oneway() && !st.ret) ? "dates" : !st.time ? "time" : !oneway() && !st.retTime ? "ret" : null;
 
   function update() {
-    const a = ap(), ow = oneway();
+    const a = ap(), ow = oneway(), ways = ow ? 1 : 2;
     $("panel-airport").classList.toggle("is-oneway", ow);
     $("panel-airport").querySelector(".apanel__row").dataset.cols = ow ? "5" : "7";
     $("aSwap").disabled = !ow; // return trips always start at the airport
 
     const [pick, drop] = a ? (st.fromAirport ? [a.name, AIRPORT.jetty] : [AIRPORT.jetty, a.name]) : (st.fromAirport ? ["Airport", AIRPORT.jetty] : [AIRPORT.jetty, "Airport"]);
-    $("aTimeLabel").textContent = st.fromAirport ? "Estimated Pickup Time" : "Pick-up time";
+    $("aTimeLabel").textContent = st.fromAirport && !shared() && (!a || a.airport) ? "Estimated Pickup Time" : "Pick-up time";
     $("aRetTimeLabel").textContent = "Return pick-up";
-    $("aTimePopLbl").textContent = `Pick-up at ${pick}`;
-    $("aRetTimePopLbl").textContent = `Pick-up at ${AIRPORT.jetty}`;
+    $("aTimePopLbl").textContent = `${shared() ? "Shared van from" : "Pick-up at"} ${pick}`;
+    $("aRetTimePopLbl").textContent = `${shared() ? "Shared van from" : "Pick-up at"} ${AIRPORT.jetty}`;
 
     const show = (btn, val, value, empty) => { $(val).textContent = value || empty; $(btn).classList.toggle("is-empty", !value); };
     show("aDateBtn", "aDateVal", st.date && shortDate(st.date), "Select date");
     show("aRetDateBtn", "aRetDateVal", st.ret && shortDate(st.ret), "Select date");
     show("aTimeBtn", "aTimeVal", st.time, "Time");
     show("aRetTimeBtn", "aRetTimeVal", st.retTime, "Time");
+    show("aPaxBtn", "aPaxVal", st.adults && paxLabel(st.adults, st.children), "Enter number");
     $("aAirport").closest(".afield").classList.toggle("is-empty", !st.airport);
-    [pax, typeSel].forEach(el => el.closest(".afield").classList.toggle("is-empty", !el.value));
+    typeSel.closest(".afield").classList.toggle("is-empty", !typeSel.value);
 
-    const n = Math.min(AIRPORT.maxPax, paxNum(pax.value));
-    const one = a ? a.price[st.type] : null;
-    const total = one == null || !n ? null : one * n * (ow ? 1 : 2);
+    const n = st.adults + st.children;
+    const q = a && st.type && st.adults ? airportQuote(a, st.type, st.adults, st.children, ways) : null;
     const svc = AIRPORT.serviceName[st.type] || "";
-    // Same format as Book a ferry (left): trip type · price. Lowest adult price per way, e.g. "Adult from RM35"
-    const prices = (a ? [a] : AIRPORT.airports).flatMap(x => Object.values(x.price)).filter(p => p != null);
-    const from = prices.length ? Math.min(...prices) : null;
-    note.innerHTML = `<span class="fnote__price">${ow ? "One-way" : "Return"} · ${from == null ? "Price on request" : `Adult from ${rm(from)} per way`}</span>
+
+    // Note: same three lines as Book a ferry (price · ✓ perk · special request)
+    const privFrom = Math.min(...(a ? [a] : AIRPORT.places).map(x => x.private[0]));
+    const priceText = st.type === "private" || (a && !a.shared)
+      ? `Private from ${rm(privFrom)} per vehicle, per way`
+      : st.type === "shared" ? `Shared · Adult ${rm(AIRPORT.places[0].shared.adult)} · Child ${rm(AIRPORT.places[0].shared.child)} per way` : `Adult from ${rm(AIRPORT.places[0].shared.adult)} per way`;
+    const perk = shared()
+      ? (st.fromAirport ? "Shared van leaves at 8am, 11am and 3pm · min. 2 passengers" : "Shared van leaves the jetty at 9am, 1pm and 5pm · min. 2 passengers")
+      : a && !a.airport ? `We pick you up at your hotel or address in ${a.city}` : `Please book a flight that lands between ${AIRPORT.flightWindow}`;
+    note.innerHTML = `<span class="fnote__price">${ow ? "One-way" : "Return"} · ${priceText}</span>
       <span class="fnote__perks">
-        <span class="fnote__perk fnote__perk--tick"><i aria-hidden="true"></i>Please book a flight that lands between ${AIRPORT.flightWindow}</span>
+        <span class="fnote__perk fnote__perk--tick"><i aria-hidden="true"></i>${perk}</span>
         <span class="fnote__perk">Special request? <a href="${waLink(AIRPORT_REQUEST_MSG)}" target="_blank" rel="noopener">Chat with us on WhatsApp</a></span>
       </span>`;
 
-    const missing = !st.airport ? "Choose airport" : !st.date ? "Select date" : !ow && !st.ret ? "Select return date" : !st.time ? "Select time" : !ow && !st.retTime ? "Select return time" : !st.type ? "Choose transfer" : !n ? "Enter passengers" : "";
+    const missing = !st.airport ? "Choose airport" : !st.date ? "Select date" : !ow && !st.ret ? "Select return date" : !st.time ? "Select time" : !ow && !st.retTime ? "Select return time"
+      : !st.type ? "Choose transfer" : !st.adults ? "Enter passengers" : shared() && n < AIRPORT.sharedMin ? "Shared: min. 2 passengers" : "";
     go.setAttribute("aria-disabled", String(Boolean(missing)));
     if (missing) { go.textContent = missing; go.removeAttribute("href"); return; }
+    const total = q && q.total;
     go.textContent = total == null ? "Book now" : `Book · ${rm(total)}`;
-    // priced trips (Kota Bharu shared) are paid online in the booking sheet; others go to WhatsApp
+    // priced trips are paid online in the booking sheet; others (e.g. more than 15 on private) go to WhatsApp
     go.dataset.pay = total == null ? "" : "1";
-    payDetails = total == null ? null : { trip: ow ? "oneway" : "return", code: a.code, service: st.type, serviceName: svc, fromAirport: st.fromAirport,
-      pick, drop, date: isoDate(st.date), time: st.time, returnDate: ow ? "" : isoDate(st.ret), returnTime: ow ? "" : st.retTime, pax: n, price: one };
+    payDetails = total == null ? null : { trip: ow ? "oneway" : "return", code: a.code, place: a.name, isAirport: a.airport, city: a.city || "",
+      service: st.type, serviceName: svc, vehicle: q.vehicle, fromAirport: st.fromAirport, pick, drop,
+      date: isoDate(st.date), time: st.time, returnDate: ow ? "" : isoDate(st.ret), returnTime: ow ? "" : st.retTime,
+      adults: st.adults, children: st.children, pax: n, lines: q.lines, total };
     go.href = waLink([
       "Hi Cucimato! I'd like to book an airport transfer.",
-      `Service: ${svc} transfer, ${ow ? "one-way" : "return"}`,
+      `Service: ${svc} transfer${q && q.vehicle ? ` (${q.vehicle})` : ""}, ${ow ? "one-way" : "return"}`,
       `Pick-up: ${pick}`,
       `Drop-off: ${drop}`,
       `Pick-up date: ${fmtDate(st.date)}`,
       `${$("aTimeLabel").textContent}: ${st.time}`,
       ...(ow ? [] : [`Return date: ${fmtDate(st.ret)} (${drop} → ${pick})`, `Return pick-up time: ${st.retTime}`]),
-      `Passengers: ${n}`,
-      ...(total == null ? [] : [`Price: ${rm(one)} × ${n} × ${ow ? 1 : 2} way${ow ? "" : "s"} = ${rm(total)}`]),
+      `Passengers: ${paxLabel(st.adults, st.children)}`,
+      ...(total == null ? [] : [`Price: ${rm(total)}`]),
     ].join("\n"));
   }
 
@@ -1125,8 +1187,16 @@ const AIRPORT = {
     else if (!st.fromAirport) { st.fromAirport = true; drawRoute(); } // return = airport first
     st.picking = "date"; closeAll(); drawSlots(); update();
   }));
-  typeSel.addEventListener("change", () => { st.type = typeSel.value; update(); });
-  pax.addEventListener("input", update);
+  typeSel.addEventListener("change", () => { st.type = typeSel.value; drawSlots(); update(); });
+  // Passengers are typed in, like Book a ferry. Empty children = 0.
+  $("aPaxBtn").addEventListener("click", () => $("aPaxPop").hidden ? open("pax") : closeAll());
+  $("aPaxPop").addEventListener("input", (e) => {
+    const key = e.target.dataset.apax;
+    if (!key) return;
+    st[key] = Math.min(AIRPORT.maxPax, paxNum(e.target.value));
+    update();
+  });
+  document.querySelector("[data-apaxclose]").addEventListener("click", closeAll);
   $("aSwap").addEventListener("click", () => { if (!oneway()) return; st.fromAirport = !st.fromAirport; closeAll(); drawRoute(); drawSlots(); update(); });
 
   $("aDateBtn").addEventListener("click", () => { const was = !$("aDatesPop").hidden && st.picking === "date"; st.picking = "date"; was ? closeAll() : open("dates"); });
@@ -1180,12 +1250,47 @@ const AIRPORT = {
     const n = nextStep();
     if (n === "dates") { st.picking = st.date && !oneway() ? "ret" : "date"; open("dates"); return; }
     if (n) { open(n); return; }
-    const el = !st.type ? typeSel : pax;
-    el.focus(); try { el.showPicker?.(); } catch {}
+    if (!st.type) { typeSel.focus(); try { typeSel.showPicker?.(); } catch {} return; }
+    open("pax");
   });
 
   drawRoute(); drawTypes(); drawSlots(); update();
 })();
+
+/* Prices under the Ferry Schedule tab: ferry, shared and private airport transfer (same data as the panels) */
+document.querySelectorAll("[data-prices]").forEach(el => {
+  const sh = AIRPORT.places.find(p => p.shared).shared;
+  const rows = [["KBR Airport / Kota Bharu City", "KBR"], ["TGG Airport", "TGG"], ["Kuala Terengganu City", "KTC"]]
+    .map(([label, code]) => [label, AIRPORT.places.find(p => p.code === code).private]);
+  const sizes = ["1–4 pax", "5–8 pax", "9–12 pax", "13–15 pax"];
+  el.innerHTML = `
+    <div class="sched__head"><strong>Prices</strong><small>Malaysian Ringgit (MYR)</small></div>
+    <div class="ptables">
+      <div class="ptable">
+        <p class="ptable__title">Ferry ticket<small>Kuala Besut Jetty ⇄ Perhentian Island</small></p>
+        <table><thead><tr><th></th><th>Return</th><th>One-way</th></tr></thead><tbody>
+          <tr><th>Adult</th><td>${rm(FERRY.adult)}</td><td>${rm(FERRY.oneWay.adult)}</td></tr>
+          <tr><th>Child <span>1–9 yrs</span></th><td>${rm(FERRY.child)}</td><td>${rm(FERRY.oneWay.child)}</td></tr>
+        </tbody></table>
+      </div>
+      <div class="ptable">
+        <p class="ptable__title">Shared airport transfer<small>KBR Airport / Kota Bharu City ⇄ Kuala Besut Jetty · min. 2 pax</small></p>
+        <table><thead><tr><th></th><th>Per way</th><th>Return</th></tr></thead><tbody>
+          <tr><th>Adult</th><td>${rm(sh.adult)}</td><td>${rm(sh.adult * 2)}</td></tr>
+          <tr><th>Child <span>1–9 yrs</span></th><td>${rm(sh.child)}</td><td>${rm(sh.child * 2)}</td></tr>
+        </tbody></table>
+        <p class="ptable__note">Leaves at 8am, 11am, 3pm · from the jetty at 9am, 1pm, 5pm</p>
+      </div>
+      <div class="ptable ptable--wide">
+        <p class="ptable__title">Private transfer<small>Per car or van, per way, to or from Kuala Besut Jetty</small></p>
+        <div class="ptable__scroll"><table><thead><tr><th></th>${sizes.map(x => `<th>${x}</th>`).join("")}</tr></thead><tbody>
+          ${rows.map(([label, prices]) => `<tr><th>${label}</th>${prices.map(v => `<td>${rm(v)}</td>`).join("")}</tr>`).join("")}
+        </tbody></table></div>
+        <div class="ptable__cards">${rows.map(([label, prices]) => `<table><thead><tr><th>${label}</th><th></th></tr></thead><tbody>
+          ${prices.map((v, i) => `<tr><th>${sizes[i]}</th><td>${rm(v)}</td></tr>`).join("")}</tbody></table>`).join("")}</div>
+      </div>
+    </div>`;
+});
 
 /* Hero tab bar slides sideways on small screens: keep the chosen tab in view */
 (() => {
