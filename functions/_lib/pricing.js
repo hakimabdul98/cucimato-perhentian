@@ -21,6 +21,9 @@ export const VEHICLES = [
   { max: 15, name: "15-seater van" },
 ];
 export const SHARED_MIN = 2;
+// Transaction fee added to every online payment, whatever the method (shown to the customer before paying)
+export const TXN_FEE_PERCENT = 4;
+export const txnFee = (base) => Math.round(base * TXN_FEE_PERCENT) / 100;
 // Shared van schedule (departure times). Private: any listed time.
 export const SHARED_TIMES = { fromPlace: ["8:00 AM", "11:00 AM", "3:00 PM"], fromJetty: ["9:00 AM", "1:00 PM", "5:00 PM"] };
 

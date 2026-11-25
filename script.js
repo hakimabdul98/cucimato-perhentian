@@ -8,7 +8,7 @@ const WHATSAPP = "60192094669";
 const waLink = (msg) => `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
 const MSG_GENERAL = "Hi Cucimato! I'm interested in a Perhentian Island package. Could you share more details?";
 const msgFor = (name) => `Hi Cucimato! I'm interested in the *${name}* package.\nDates: \nNumber of people: \nLength (2D1N / 3D2N): `;
-const rm = (n) => "RM" + n.toLocaleString("en-MY");
+const rm = (n) => "RM" + n.toLocaleString("en-MY", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
 const $ = (id) => document.getElementById(id);
 
 /* ---------- Hero tabs (Book a ferry / Hotel + Packages / Ground Packages / Ferry Schedule) ---------- */
@@ -733,7 +733,8 @@ function bkSumHTML(price) {
   if (!bk.adults && bk.mode !== "airport") return `<div class="muted"><span>Enter the number of guests to see the price</span></div>`;
   return `${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
     ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
-    ${price.total != null ? `<div class="t"><span>${payMode() ? "Total to pay" : "Estimated total"}</span><span>${rm(price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
+    ${price.total != null && payMode() ? `<div><span>Transaction fee (${PAY.feePercent}%)</span><span>${rm(txnFee(price.total))}</span></div>` : ""}
+    ${price.total != null ? `<div class="t"><span>${payMode() ? "Total to pay" : "Estimated total"}</span><span>${rm(payMode() ? payTotal(price.total) : price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
 }
 
 function renderBooking() {
@@ -777,8 +778,8 @@ function renderBooking() {
         </div></div>
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
-      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? `Pay now · ${rm(price.total)}` : "Confirm booking"}</button>
-      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? `${PAY.test ? "<b>Test mode:</b> no real money is taken. " : ""}Secure payment by HitPay: FPX online banking, DuitNow QR or card. Your confirmation and e-ticket are emailed after payment. By paying you agree to our <a href="terms.html" target="_blank" rel="noopener">booking terms</a>.` : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
+      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? `Pay now · ${rm(payTotal(price.total))}` : "Confirm booking"}</button>
+      <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? `${PAY.test ? "<b>Test mode:</b> no real money is taken. " : ""}Secure payment by HitPay: FPX online banking, DuitNow QR, e-wallet or card. A ${PAY.feePercent}% transaction fee applies to every online payment. Your confirmation and e-ticket are emailed after payment. By paying you agree to our <a href="terms.html" target="_blank" rel="noopener">booking terms</a>.` : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
 }
 
@@ -873,7 +874,10 @@ function bkValidate() {
    again; the page only sends the trip details. If payment isn't available (e.g. the
    site runs somewhere without the payment functions), ferry falls back to the old
    "invoice by email" booking and airport falls back to WhatsApp. */
-const PAY = { enabled: false, test: false, endpoint: "/api/pay" };
+const PAY = { enabled: false, test: false, endpoint: "/api/pay", feePercent: 4 };
+// 4% transaction fee on every online payment (any method). Same sum as functions/_lib/pricing.js
+const txnFee = (base) => Math.round(base * PAY.feePercent) / 100;
+const payTotal = (base) => Math.round((base + txnFee(base)) * 100) / 100;
 // Ask the server once whether online payment is switched on (off on GitHub Pages or until HitPay is set up)
 fetch(PAY.endpoint, { cache: "no-store" })
   .then(r => r.ok ? r.json() : null)
@@ -1306,7 +1310,8 @@ document.querySelectorAll("[data-prices]").forEach(el => {
         <div class="ptable__cards">${rows.map(([label, prices]) => `<table><thead><tr><th>${label}</th><th></th></tr></thead><tbody>
           ${prices.map((v, i) => `<tr><th>${sizes[i]}</th><td>${rm(v)}</td></tr>`).join("")}</tbody></table>`).join("")}</div>
       </div>
-    </div>`;
+    </div>
+    <p class="ptable__note">Online payments add a ${PAY.feePercent}% transaction fee, shown before you pay.</p>`;
 });
 
 /* Hero tab bar slides sideways on small screens: keep the chosen tab in view */
