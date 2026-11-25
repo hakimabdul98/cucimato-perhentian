@@ -60,13 +60,21 @@ const FERRY_ADDONS = [
 ];
 
 const today = new Date(); today.setHours(0, 0, 0, 0);
+// Booking season: only these dates can be booked; others show an "off season" note when tapped.
+// Change every year (also SEASON in functions/_lib/pricing.js).
+const SEASON = { start: new Date(2027, 1, 15), end: new Date(2027, 9, 15), label: "15 Feb – 15 Oct 2027" };
+const inSeason = (d) => d >= SEASON.start && d <= SEASON.end;
+const OFF_SEASON_MSG = `Off season. We take bookings for ${SEASON.label} only.`;
 const firstBookable = new Date(today); firstBookable.setDate(today.getDate() + FERRY.minDaysAhead);
-const lastBookable = new Date(today.getFullYear(), today.getMonth() + FERRY.maxMonthsAhead + 1, 0);
+const lastBookable = new Date(SEASON.end);
+// Calendars open at the first month you can actually book
+const firstOpen = firstBookable > SEASON.start ? firstBookable : SEASON.start;
+const offSeason = (d) => d >= firstBookable && !inSeason(d);   // any future date outside the season
 const fmtDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
 const shortDate = (d) => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const sameDay = (a, b) => a && b && a.getTime() === b.getTime();
 const paxNum = (v) => Math.min(99, Math.max(0, parseInt(String(v).replace(/\D/g, ""), 10) || 0));
-const isBookable = (d) => d >= firstBookable && d <= lastBookable && !FERRY.closedMonths.includes(d.getMonth() + 1);
+const isBookable = (d) => d >= firstBookable && d <= lastBookable && inSeason(d) && !FERRY.closedMonths.includes(d.getMonth() + 1);
 
 const FERRY_REQUEST_MSG = "Hi Cucimato! I have a special request for my ferry trip (e.g. private boat, different time).\nDate: \nNumber of passengers: \nMy request: ";
 const ferry = { trip: "return", dir: "toIsland", picking: "depart", depart: null, ret: null, departTime: null, returnTime: null, adults: 0, children: 0 };
@@ -75,7 +83,7 @@ const isOneWay = () => ferry.trip === "oneway";
 const toJetty = () => isOneWay() && ferry.dir === "toJetty";
 const ROUTE = { toIsland: ["Kuala Besut Jetty", "Perhentian Island"], toJetty: ["Perhentian Island", "Kuala Besut Jetty"] };
 const firstBoatTimes = () => toJetty() ? FERRY.returnTimes : FERRY.departTimes;
-let fView = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
+let fView = new Date(firstOpen.getFullYear(), firstOpen.getMonth(), 1);
 
 function fMonthHTML(y, m) {
   const lead = (new Date(y, m, 1).getDay() + 6) % 7; // Monday first
@@ -86,9 +94,10 @@ function fMonthHTML(y, m) {
     const isStart = sameDay(date, ferry.depart), isEnd = sameDay(date, ferry.ret);
     const inRange = !isOneWay() && ferry.depart && ferry.ret && date > ferry.depart && date < ferry.ret;
     const beforeDepart = ferry.picking === "return" && ferry.depart && date < ferry.depart;
-    html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}" data-fday="${y}-${m}-${d}"
-      aria-label="${fmtDate(date)}${isStart ? " (depart)" : isEnd ? " (return)" : ""}"
-      aria-pressed="${isStart || isEnd}" ${isBookable(date) && !beforeDepart ? "" : "disabled"}>${d}</button>`;
+    const off = offSeason(date);
+    html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}${off ? " is-off" : ""}" data-fday="${y}-${m}-${d}"
+      aria-label="${fmtDate(date)}${off ? " (off season)" : isStart ? " (depart)" : isEnd ? " (return)" : ""}"
+      aria-pressed="${isStart || isEnd}" ${off || (isBookable(date) && !beforeDepart) ? "" : "disabled"}>${d}</button>`;
   }
   const title = new Date(y, m, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   return `<div class="fcal__month"><p>${title}</p>
@@ -102,6 +111,7 @@ function renderFerryCal() {
   $("fCalMonths").innerHTML = fMonthHTML(y, m) + fMonthHTML(second.getFullYear(), second.getMonth());
   $("fCalPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
   $("fCalNext").disabled = second.getFullYear() === lastBookable.getFullYear() && second.getMonth() === lastBookable.getMonth();
+  $("fCalHint").classList.remove("is-off");
   $("fCalHint").textContent = isOneWay() ? "Select your depart date"
     : ferry.picking === "return" ? "Now select your return date" : "Select your depart date";
 }
@@ -202,6 +212,7 @@ $("fCalPrev").addEventListener("click", () => { fView.setMonth(fView.getMonth() 
 $("fCalNext").addEventListener("click", () => { fView.setMonth(fView.getMonth() + 1); renderFerryCal(); });
 $("fCalMonths").addEventListener("click", (e) => {
   const b = e.target.closest("[data-fday]");
+  if (b && b.classList.contains("is-off")) { $("fCalHint").textContent = OFF_SEASON_MSG; $("fCalHint").classList.add("is-off"); return; }
   if (!b || b.disabled) return;
   const [y, m, d] = b.dataset.fday.split("-").map(Number);
   const date = new Date(y, m, d);
@@ -428,6 +439,7 @@ document.querySelectorAll("[data-sched]").forEach(el => {
       <li>Subject to weather and traffic conditions.</li>
       <li>Private ferry on request, <a href="${privateFerryLink}" target="_blank" rel="noopener">WhatsApp us</a>.</li>
       <li>Please arrive 20 minutes before departure.</li>
+      <li>Season: ${SEASON.label}.</li>
     </ul>`;
 });
 
@@ -772,7 +784,7 @@ function bkSumHTML(price) {
 function renderBooking() {
   const it = bkItem(), hotel = bk.mode === "hotel";
   if (bk.done) { renderBookingDone(it); return; }
-  const min = isoDate(firstBookable), max = isoDate(lastBookable);
+  const min = isoDate(firstOpen), max = isoDate(lastBookable);
   const price = bkPrice();
   // Guests are typed in (easier for big groups). Empty children = 0.
   const pax = (key, label, placeholder) => `<label class="bk__f">${label}<input type="number" name="${key}" inputmode="numeric" min="${key === "adults" ? 1 : 0}" max="99" value="${bk[key] || ""}" placeholder="${placeholder}"${key === "adults" ? " required" : ""}></label>`;
@@ -922,6 +934,7 @@ function bkValidate() {
   if (bk.mode !== "airport") {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
+  if (!inSeason(fromIso(bk.start)) || !inSeason(fromIso(bk.end))) return OFF_SEASON_MSG;
   if (bk.mode !== "hotel" && !bk.dep) return bk.toJetty ? "Please choose your boat time from the island." : "Please choose your boat time to the island.";
   if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose a return boat time.";
   if (!bk.adults) return "Please enter the number of adults.";
@@ -1150,7 +1163,7 @@ function airportQuote(p, type, adults, children, ways) {
   const typeSel = $("aType"), go = $("aGo"), note = $("aNote");
   const oneway = () => st.trip === "oneway";
   const ap = () => AIRPORT.places.find(a => a.code === st.airport);
-  let view = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
+  let view = new Date(firstOpen.getFullYear(), firstOpen.getMonth(), 1);
 
   // ---------- route: the airport/city side is a dropdown ("Choose airport"), the jetty side is fixed ----------
   const airportSelect = () => `<select id="aAirport" aria-label="Airport"><option value="" disabled${st.airport ? "" : " selected"}>Choose airport</option>${AIRPORT.places.map(a => `<option value="${a.code}"${a.code === st.airport ? " selected" : ""}>${a.short}</option>`).join("")}</select>`;
@@ -1194,9 +1207,10 @@ function airportQuote(p, type, adults, children, ways) {
       const isStart = sameDay(date, st.date), isEnd = sameDay(date, st.ret);
       const inRange = !oneway() && st.date && st.ret && date > st.date && date < st.ret;
       const before = st.picking === "ret" && st.date && date < st.date;
-      html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}" data-aday="${y}-${m}-${d}"
-        aria-label="${fmtDate(date)}${isStart ? " (pick-up)" : isEnd ? " (return)" : ""}"
-        aria-pressed="${isStart || isEnd}" ${isBookable(date) && !before ? "" : "disabled"}>${d}</button>`;
+      const off = offSeason(date);
+      html += `<button type="button" class="cal__day${inRange ? " in-range" : ""}${off ? " is-off" : ""}" data-aday="${y}-${m}-${d}"
+        aria-label="${fmtDate(date)}${off ? " (off season)" : isStart ? " (pick-up)" : isEnd ? " (return)" : ""}"
+        aria-pressed="${isStart || isEnd}" ${off || (isBookable(date) && !before) ? "" : "disabled"}>${d}</button>`;
     }
     const title = new Date(y, m, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
     return `<div class="fcal__month"><p>${title}</p>
@@ -1208,6 +1222,7 @@ function airportQuote(p, type, adults, children, ways) {
     $("aCalMonths").innerHTML = monthHTML(y, m) + monthHTML(second.getFullYear(), second.getMonth());
     $("aCalPrev").disabled = y === firstBookable.getFullYear() && m === firstBookable.getMonth();
     $("aCalNext").disabled = second.getFullYear() === lastBookable.getFullYear() && second.getMonth() === lastBookable.getMonth();
+    $("aCalHint").classList.remove("is-off");
     $("aCalHint").textContent = st.picking === "ret" ? "Now select your return date" : "Select your pick-up date";
   }
 
@@ -1317,6 +1332,7 @@ function airportQuote(p, type, adults, children, ways) {
   $("aCalNext").addEventListener("click", () => { view.setMonth(view.getMonth() + 1); drawCal(); });
   $("aCalMonths").addEventListener("click", (e) => {
     const b = e.target.closest("[data-aday]");
+    if (b && b.classList.contains("is-off")) { $("aCalHint").textContent = OFF_SEASON_MSG; $("aCalHint").classList.add("is-off"); return; }
     if (!b || b.disabled) return;
     const [y, m, d] = b.dataset.aday.split("-").map(Number);
     const date = new Date(y, m, d);

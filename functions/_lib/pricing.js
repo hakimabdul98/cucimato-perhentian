@@ -39,6 +39,10 @@ const isDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const isTime = (s) => typeof s === "string" && /^\d{1,2}:\d{2} (AM|PM)$/.test(s);
 const count = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
 
+// Booking season (inclusive). Keep in step with SEASON in script.js.
+export const SEASON = { start: "2027-02-15", end: "2027-10-15", label: "15 Feb – 15 Oct 2027" };
+const inSeason = (iso) => iso >= SEASON.start && iso <= SEASON.end;
+
 /* Returns { amount, purpose, summary } or { error } */
 export function quote(b) {
   if (!b || typeof b !== "object") return { error: "Missing booking." };
@@ -47,6 +51,7 @@ export function quote(b) {
   if (!isDate(b.date)) return { error: "Choose a date." };
   if (!oneway && !isDate(b.returnDate)) return { error: "Choose a return date." };
   if (!oneway && b.returnDate < b.date) return { error: "Return date is before the first date." };
+  if (!inSeason(b.date) || (!oneway && !inSeason(b.returnDate))) return { error: `Off season. We take bookings for ${SEASON.label} only.` };
 
   if (b.type === "ferry") {
     const adults = Number(b.adults), children = Number(b.children || 0);

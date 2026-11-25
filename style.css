@@ -852,3 +852,7 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 .bk__sum .bk__off span:last-child { color: #15803d; }
 .bk__fapax { margin-top: 10px; }
 .bk__fapax .bk__lbl { margin-bottom: 4px; }
+
+/* Booking season: off-season days are faded but tappable (they show the off-season note) */
+.cal__day.is-off { color: #c4c7cc; text-decoration: line-through; text-decoration-color: #dcdfe3; }
+.fcal__hint.is-off { color: #b42318; font-weight: 500; }
