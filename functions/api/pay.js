@@ -2,6 +2,7 @@
    Body (JSON): booking details + { name, email, phone }.
    The amount is calculated on the server (functions/_lib/pricing.js). */
 import { quote, txnFee, TXN_FEE_PERCENT } from "../_lib/pricing.js";
+import { findPromo, promoDiscount } from "../_lib/promo.js";
 import { API_BASE, hitpayHeaders, json, payMode, tellBookingApp } from "../_lib/hitpay.js";
 
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
@@ -31,15 +32,24 @@ export async function onRequestPost({ request, env }) {
   const rand = [...crypto.getRandomValues(new Uint8Array(4))].map(n => "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[n % 32]).join("");
   const reference = `CW-${d}-${rand}`;
 
-  // 4% transaction fee on top of the trip price (same for every payment method)
-  const fee = txnFee(q.amount), total = Math.round((q.amount + fee) * 100) / 100;
+  // Promo code (checked again here, never trusted from the page), then the 4% transaction fee
+  // on the price after the discount (same fee for every payment method)
+  let promo = null, discount = 0;
+  if (String(body.promo || "").trim()) {
+    promo = await findPromo(env, body.promo, body.type === "airport" ? "airport" : "ferry");
+    if (promo.error) return json({ error: promo.error }, 400);
+    discount = promoDiscount(promo, q.amount);
+  }
+  const net = Math.round((q.amount - discount) * 100) / 100;
+  if (net < 1) return json({ error: "This promo code can't be used for this booking." }, 400);
+  const fee = txnFee(net), total = Math.round((net + fee) * 100) / 100;
 
   const origin = new URL(request.url).origin;
   const form = new URLSearchParams({
     amount: total.toFixed(2),
     currency: "MYR",
     name, email,
-    purpose: `${q.purpose} (incl. ${TXN_FEE_PERCENT}% transaction fee)`.slice(0, 255),
+    purpose: `${q.purpose}${promo ? `, promo ${promo.code}` : ""} (incl. ${TXN_FEE_PERCENT}% transaction fee)`.slice(0, 255),
     reference_number: reference,
     redirect_url: `${origin}/payment`,   // Pages serves payment.html at /payment
   });
@@ -57,6 +67,7 @@ export async function onRequestPost({ request, env }) {
   const pick = ["type", "trip", "direction", "airport", "service", "date", "returnDate", "time", "returnTime", "adults", "children"];
   const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
   booking.base = q.amount; booking.fee = fee; booking.feePercent = TXN_FEE_PERCENT;
+  if (promo) { booking.promo = promo.code; booking.discount = discount; }
   // Airport extras: passengers and vehicle as priced here, plus flight details / city address from the customer
   if (body.type === "airport") {
     booking.pax = q.summary.pax; booking.vehicle = q.summary.vehicle;

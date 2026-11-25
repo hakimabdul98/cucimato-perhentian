@@ -841,3 +841,11 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 [data-asched] .sched__block { grid-column: auto; }
 [data-asched] { grid-template-columns: 1fr 1fr; }
 @media (max-width: 760px) { [data-asched] { grid-template-columns: 1fr; } .hpanel__title--next { margin-top: 32px; } }
+
+/* Promo code box at checkout (booking sheet) */
+.bk__promo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.bk__promo .btn { height: 100%; min-height: 44px; padding: 0 18px; }
+.bk__promo input[readonly] { background: var(--soft); color: var(--ink); font-weight: 600; letter-spacing: .04em; }
+.bk__promomsg { grid-column: 1 / -1; font-size: 13px; color: #b42318; }
+.bk__promomsg.is-ok { color: #15803d; }
+.bk__sum .bk__off span:last-child { color: #15803d; }

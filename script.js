@@ -704,7 +704,7 @@ function bkItem() {
 }
 
 function openBooking(mode, id = "") {
-  Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set() });
+  Object.assign(bk, { mode, id, error: "", done: false, sending: false, addons: new Set(), promoCode: "", promoApplied: null, promoMsg: "", promoBusy: false });
   bk.oneway = mode === "ferry" && isOneWay();
   bk.toJetty = mode === "ferry" && toJetty();
   if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(bk.oneway ? ferry.depart : ferry.ret), dep: ferry.departTime || "", ret: bk.oneway ? "" : ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
@@ -733,7 +733,8 @@ function bkSumHTML(price) {
   if (!bk.adults && bk.mode !== "airport") return `<div class="muted"><span>Enter the number of guests to see the price</span></div>`;
   return `${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
     ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
-    ${price.total != null && payMode() ? `<div><span>Transaction fee (${PAY.feePercent}%)</span><span>${rm(txnFee(price.total))}</span></div>` : ""}
+    ${price.total != null && payMode() && bk.promoApplied ? `<div class="bk__off"><span>Promo ${esc(bk.promoApplied.code)} (${esc(bk.promoApplied.label)})</span><span>−${rm(promoOff(price.total))}</span></div>` : ""}
+    ${price.total != null && payMode() ? `<div><span>Transaction fee (${PAY.feePercent}%)</span><span>${rm(txnFee(Math.round((price.total - promoOff(price.total)) * 100) / 100))}</span></div>` : ""}
     ${price.total != null ? `<div class="t"><span>${payMode() ? "Total to pay" : "Estimated total"}</span><span>${rm(payMode() ? payTotal(price.total) : price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
 }
 
@@ -776,6 +777,11 @@ function renderBooking() {
           <label class="bk__f"><span class="sr-only">Email</span><input type="email" name="email" value="${esc(bk.email)}" placeholder="Email" autocomplete="email" required></label>
           ${bk.mode === "airport" ? airportExtraFields() : ""}
         </div></div>
+      ${payMode() && price?.total != null ? `<div class="bk__promo">
+        <label class="bk__f"><span class="sr-only">Promo code</span><input type="text" name="promoCode" value="${esc(bk.promoCode || "")}" placeholder="Promo code" autocomplete="off" autocapitalize="characters"${bk.promoApplied ? " readonly" : ""}></label>
+        ${bk.promoApplied ? `<button type="button" class="btn btn--outline btn--sm" data-promo="remove">Remove</button>` : `<button type="button" class="btn btn--outline btn--sm" data-promo="apply"${bk.promoBusy ? " disabled" : ""}>${bk.promoBusy ? "Checking…" : "Apply"}</button>`}
+        ${bk.promoMsg ? `<small class="bk__promomsg${bk.promoApplied ? " is-ok" : ""}">${esc(bk.promoMsg)}</small>` : ""}
+      </div>` : ""}
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
       <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? `Pay now · ${rm(payTotal(price.total))}` : "Confirm booking"}</button>
@@ -877,7 +883,9 @@ function bkValidate() {
 const PAY = { enabled: false, test: false, endpoint: "/api/pay", feePercent: 4 };
 // 4% transaction fee on every online payment (any method). Same sum as functions/_lib/pricing.js
 const txnFee = (base) => Math.round(base * PAY.feePercent) / 100;
-const payTotal = (base) => Math.round((base + txnFee(base)) * 100) / 100;
+// Promo code (checked by /api/promo, applied again on the server), then the fee on the lower price
+const promoOff = (base) => { const p = bk.promoApplied; return !p ? 0 : Math.min(base, Math.round((p.kind === "percent" ? base * p.value / 100 : p.value) * 100) / 100); };
+const payTotal = (base) => { const net = Math.round((base - promoOff(base)) * 100) / 100; return Math.round((net + txnFee(net)) * 100) / 100; };
 // Ask the server once whether online payment is switched on (off on GitHub Pages or until HitPay is set up)
 fetch(PAY.endpoint, { cache: "no-store" })
   .then(r => r.ok ? r.json() : null)
@@ -891,12 +899,12 @@ function payPayload() {
     const a = bk.air;
     const f = (k) => String(bk[k] || "").trim();
     return { type: "airport", trip: a.trip, airport: a.code, service: a.service, direction: a.fromAirport ? "fromAirport" : "toAirport",
-      date: a.date, returnDate: a.returnDate, time: a.time, returnTime: a.returnTime, adults: a.adults, children: a.children, ...who,
+      date: a.date, returnDate: a.returnDate, time: a.time, returnTime: a.returnTime, adults: a.adults, children: a.children, ...who, promo: bk.promoApplied?.code || "",
       ...(a.isAirport ? { arrAirline: airArrives(a) ? f("arrAirline") : "", arrFlight: airArrives(a) ? f("arrFlight").toUpperCase() : "",
         depAirline: airLeaves(a) ? f("depAirline") : "", depFlight: airLeaves(a) ? f("depFlight").toUpperCase() : "" } : { address: f("address") }) };
   }
   return { type: "ferry", trip: bk.oneway ? "oneway" : "return", direction: bk.toJetty ? "toJetty" : "toIsland",
-    date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who };
+    date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who, promo: bk.promoApplied?.code || "" };
 }
 
 // Returns { url, reference } on success, { unavailable: true } when payment isn't set up, or { error }
@@ -972,6 +980,8 @@ document.addEventListener("click", (e) => {
 $("bkClose").addEventListener("click", () => bkSheet.close());
 bkSheet.addEventListener("click", (e) => {
   if (e.target === bkSheet || e.target.closest("[data-bkclose]")) { bkSheet.close(); return; }
+  const pr = e.target.closest("[data-promo]");
+  if (pr) { pr.dataset.promo === "remove" ? Object.assign(bk, { promoApplied: null, promoMsg: "", promoCode: "" }) && renderBooking() : applyPromo(); return; }
   const add = e.target.closest("[data-bkaddon]");
   if (add) { const v = add.dataset.bkaddon; add.checked ? bk.addons.add(v) : bk.addons.delete(v); $("bkAddonVal").textContent = addonSummary(); }
 });
@@ -992,6 +1002,22 @@ bkSheet.addEventListener("input", (e) => {
   }
 });
 bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
+// Enter in the promo box applies the code instead of paying
+bkSheet.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.name === "promoCode") { e.preventDefault(); applyPromo(); } });
+
+async function applyPromo() {
+  const code = String(bk.promoCode || "").trim().toUpperCase();
+  if (!code) { bk.promoMsg = "Enter a promo code."; renderBooking(); return; }
+  Object.assign(bk, { promoBusy: true, promoMsg: "" }); renderBooking();
+  try {
+    const res = await fetch(`/api/promo?code=${encodeURIComponent(code)}&type=${bk.mode === "airport" ? "airport" : "ferry"}`, { cache: "no-store" });
+    const d = await res.json().catch(() => ({}));
+    if (res.ok && d.code) Object.assign(bk, { promoApplied: d, promoCode: d.code, promoMsg: `${d.code} applied: ${d.label}` });
+    else Object.assign(bk, { promoApplied: null, promoMsg: d.error || "This promo code isn't valid." });
+  } catch { Object.assign(bk, { promoApplied: null, promoMsg: "We couldn't check the promo code. Please try again." }); }
+  bk.promoBusy = false; renderBooking();
+  bkSheet.querySelector(".bk__promo")?.scrollIntoView({ block: "center" });
+}
 
 /* =========================================================
    Airport Transfer — Kota Bharu (KBR) / Kuala Terengganu (TGG) airport <-> Kuala Besut Jetty
