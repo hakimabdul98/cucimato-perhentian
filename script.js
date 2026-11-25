@@ -116,7 +116,7 @@ function renderFerryPanel() {
   const [from, to] = ROUTE[toJetty() ? "toJetty" : "toIsland"];
   $("fFromVal").textContent = from; $("fToVal").textContent = to;
   $("fSwap").disabled = !oneWay;
-  $("fDepLbl").textContent = toJetty() ? "To jetty" : "To island";
+  $("fDepLbl").textContent = "Depart Time";
   $("fDepPopLbl").textContent = `${from} → ${to}`;
   // Note under the panel: trip type + price (left), e-ticket and time-change help (right)
   const priceText = oneWay
@@ -772,7 +772,7 @@ function renderBooking() {
             <label class="bk__f"><span class="sr-only">Country code</span><select name="cc" autocomplete="tel-country-code">${COUNTRY_CODES.map(([c, n]) => `<option value="${c}"${c === bk.cc ? " selected" : ""}>${n} ${c}</option>`).join("")}</select></label>
             <label class="bk__f"><span class="sr-only">WhatsApp number</span><input type="tel" name="phone" value="${esc(bk.phone)}" placeholder="12 345 6789" autocomplete="tel-national" inputmode="tel" required></label>
           </div>
-          <label class="bk__f"><span class="sr-only">Email</span><input type="email" name="email" value="${esc(bk.email)}" placeholder="Email (for your invoice)" autocomplete="email" required></label>
+          <label class="bk__f"><span class="sr-only">Email</span><input type="email" name="email" value="${esc(bk.email)}" placeholder="Email" autocomplete="email" required></label>
           ${bk.mode === "airport" ? airportExtraFields() : ""}
         </div></div>
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
@@ -990,7 +990,7 @@ bkSheet.addEventListener("input", (e) => {
 bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
 
 /* =========================================================
-   Airport Transfer — Kota Bharu / Kuala Terengganu (airport or city) <-> Kuala Besut Jetty
+   Airport Transfer — Kota Bharu (KBR) / Kuala Terengganu (TGG) airport <-> Kuala Besut Jetty
    shared:  RM per person, per way (null = no shared van there). Min 2 passengers, fixed times.
    private: RM per vehicle, per way (published rate + RM20), one price per size in vehicles[].
    Return = 2 ways. Keep in step with functions/_lib/pricing.js (the server works the price out again).
@@ -1000,12 +1000,11 @@ const AIRPORT = {
   jetty: "Kuala Besut Jetty",
   places: [
     { code: "KBR", short: "KBR Airport", name: "Kota Bharu Airport (KBR)", airport: true, shared: { adult: 35, child: 30 }, private: [130, 215, 265, 315] },
-    { code: "KBC", short: "Kota Bharu City", name: "Kota Bharu City", city: "Kota Bharu", airport: false, shared: { adult: 35, child: 30 }, private: [130, 215, 265, 315] },
     { code: "TGG", short: "TGG Airport", name: "Kuala Terengganu Airport (TGG)", airport: true, shared: null, private: [200, 275, 325, 375] },
-    { code: "KTC", short: "Kuala Terengganu City", name: "Kuala Terengganu City", city: "Kuala Terengganu", airport: false, shared: null, private: [215, 290, 350, 390] },
   ],
   vehicles: [{ max: 4, name: "Car (1–4 pax)" }, { max: 8, name: "8-seater van" }, { max: 12, name: "12-seater van" }, { max: 15, name: "15-seater van" }],
   serviceName: { private: "Private", shared: "Shared" },
+  typeLabel: { private: "Private Trip", shared: "Shared Trip" },   // options in the "Transfer Type" dropdown
   sharedMin: 2,
   // Shared van departures (from the airport/city, and from the jetty)
   sharedTimes: { fromPlace: ["8:00 AM", "11:00 AM", "3:00 PM"], fromJetty: ["9:00 AM", "1:00 PM", "5:00 PM"] },
@@ -1044,7 +1043,7 @@ function airportQuote(p, type, adults, children, ways) {
   let view = new Date(firstBookable.getFullYear(), firstBookable.getMonth(), 1);
 
   // ---------- route: the airport/city side is a dropdown ("Choose airport"), the jetty side is fixed ----------
-  const airportSelect = () => `<select id="aAirport" aria-label="Airport or city"><option value="" disabled${st.airport ? "" : " selected"}>Choose airport</option>${AIRPORT.places.map(a => `<option value="${a.code}"${a.code === st.airport ? " selected" : ""}>${a.short}</option>`).join("")}</select>`;
+  const airportSelect = () => `<select id="aAirport" aria-label="Airport"><option value="" disabled${st.airport ? "" : " selected"}>Choose airport</option>${AIRPORT.places.map(a => `<option value="${a.code}"${a.code === st.airport ? " selected" : ""}>${a.short}</option>`).join("")}</select>`;
   const jettyText = `<strong>${AIRPORT.jetty}</strong>`;
   function drawRoute() {
     $("aPickSlot").innerHTML = st.fromAirport ? airportSelect() : jettyText;
@@ -1060,7 +1059,7 @@ function airportQuote(p, type, adults, children, ways) {
     const list = a && !a.shared ? ["private"] : ["private", "shared"];
     if (!list.includes(st.type)) st.type = list.length === 1 ? list[0] : "";
     typeSel.innerHTML = `<option value="" disabled${st.type ? "" : " selected"}>Select type</option>` +
-      list.map(t => `<option value="${t}"${t === st.type ? " selected" : ""}>${AIRPORT.serviceName[t]}${a && list.length === 1 ? " (only option)" : ""}</option>`).join("");
+      list.map(t => `<option value="${t}"${t === st.type ? " selected" : ""}>${AIRPORT.typeLabel[t]}${a && list.length === 1 ? " (only option)" : ""}</option>`).join("");
   }
 
   // ---------- times: same time boxes as Book a ferry; shared follows the van schedule ----------
@@ -1123,7 +1122,7 @@ function airportQuote(p, type, adults, children, ways) {
     $("aSwap").disabled = !ow; // return trips always start at the airport
 
     const [pick, drop] = a ? (st.fromAirport ? [a.name, AIRPORT.jetty] : [AIRPORT.jetty, a.name]) : (st.fromAirport ? ["Airport", AIRPORT.jetty] : [AIRPORT.jetty, "Airport"]);
-    $("aTimeLabel").textContent = st.fromAirport && !shared() && (!a || a.airport) ? "Estimated Pickup Time" : "Pick-up time";
+    $("aTimeLabel").textContent = st.fromAirport && !shared() && (!a || a.airport) ? "Estimated Pickup Time" : "Pick-up Time";
     $("aRetTimeLabel").textContent = "Return pick-up";
     $("aTimePopLbl").textContent = `${shared() ? "Shared van from" : "Pick-up at"} ${pick}`;
     $("aRetTimePopLbl").textContent = `${shared() ? "Shared van from" : "Pick-up at"} ${AIRPORT.jetty}`;
@@ -1156,7 +1155,7 @@ function airportQuote(p, type, adults, children, ways) {
       </span>`;
 
     const missing = !st.airport ? "Choose airport" : !st.date ? "Select date" : !ow && !st.ret ? "Select return date" : !st.time ? "Select time" : !ow && !st.retTime ? "Select return time"
-      : !st.type ? "Choose transfer" : !st.adults ? "Enter passengers" : shared() && n < AIRPORT.sharedMin ? "Shared: min. 2 passengers" : "";
+      : !st.type ? "Choose transfer type" : !st.adults ? "Enter passengers" : shared() && n < AIRPORT.sharedMin ? "Shared: min. 2 passengers" : "";
     go.setAttribute("aria-disabled", String(Boolean(missing)));
     if (missing) { go.textContent = missing; go.removeAttribute("href"); return; }
     const total = q && q.total;
@@ -1257,14 +1256,32 @@ function airportQuote(p, type, adults, children, ways) {
   drawRoute(); drawTypes(); drawSlots(); update();
 })();
 
-/* Prices under the Ferry Schedule tab: ferry, shared and private airport transfer (same data as the panels) */
+/* Airport Transfer Schedule (Ferry Schedule tab): shared van times, same boxes as the ferry schedule */
+const toSlot = (t) => { const [hm, ap] = t.split(" "); return { t: hm, ap }; };
+document.querySelectorAll("[data-asched]").forEach(el => {
+  el.innerHTML = `
+    <div class="sched__block sched__block--ret">
+      <div class="sched__head"><strong>To the jetty</strong><small>KBR Airport → Kuala Besut Jetty</small></div>
+      <div class="sched__grid">${slotsHTML(AIRPORT.sharedTimes.fromPlace.map(toSlot))}</div>
+    </div>
+    <div class="sched__block sched__block--ret">
+      <div class="sched__head"><strong>From the jetty</strong><small>Kuala Besut Jetty → KBR Airport</small></div>
+      <div class="sched__grid">${slotsHTML(AIRPORT.sharedTimes.fromJetty.map(toSlot))}</div>
+    </div>
+    <ul class="sched__notes">
+      <li>Shared trip times, about 1 hour on the road. Min. 2 passengers.</li>
+      <li>Private trip: pick-up any hour from 7am to 4pm, or 9am, 1pm, 5pm from the jetty.</li>
+      <li>Flight delayed? <a href="${waLink(AIRPORT_REQUEST_MSG)}" target="_blank" rel="noopener">WhatsApp us</a>.</li>
+    </ul>`;
+});
+
+/* Ferry & Airport Transfer Prices (Ferry Schedule tab): same data as the booking panels */
 document.querySelectorAll("[data-prices]").forEach(el => {
   const sh = AIRPORT.places.find(p => p.shared).shared;
-  const rows = [["KBR Airport / Kota Bharu City", "KBR"], ["TGG Airport", "TGG"], ["Kuala Terengganu City", "KTC"]]
+  const rows = [["KBR Airport", "KBR"], ["TGG Airport", "TGG"]]
     .map(([label, code]) => [label, AIRPORT.places.find(p => p.code === code).private]);
   const sizes = ["1–4 pax", "5–8 pax", "9–12 pax", "13–15 pax"];
   el.innerHTML = `
-    <div class="sched__head"><strong>Prices</strong><small>Malaysian Ringgit (MYR)</small></div>
     <div class="ptables">
       <div class="ptable">
         <p class="ptable__title">Ferry ticket<small>Kuala Besut Jetty ⇄ Perhentian Island</small></p>
@@ -1274,7 +1291,7 @@ document.querySelectorAll("[data-prices]").forEach(el => {
         </tbody></table>
       </div>
       <div class="ptable">
-        <p class="ptable__title">Shared airport transfer<small>KBR Airport / Kota Bharu City ⇄ Kuala Besut Jetty · min. 2 pax</small></p>
+        <p class="ptable__title">Shared airport transfer<small>KBR Airport ⇄ Kuala Besut Jetty · min. 2 pax</small></p>
         <table><thead><tr><th></th><th>Per way</th><th>Return</th></tr></thead><tbody>
           <tr><th>Adult</th><td>${rm(sh.adult)}</td><td>${rm(sh.adult * 2)}</td></tr>
           <tr><th>Child <span>1–9 yrs</span></th><td>${rm(sh.child)}</td><td>${rm(sh.child * 2)}</td></tr>

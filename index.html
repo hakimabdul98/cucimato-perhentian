@@ -21,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;800&family=Righteous&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=57">
+  <link rel="stylesheet" href="style.css?v=59">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
 </head>
 <body>
@@ -113,10 +113,10 @@
 
           <div class="fpop-wrap fdates">
             <button type="button" class="ffield is-empty" id="fDepartBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fDatesPop">
-              <small>Depart</small><strong id="fDepartVal">Select date</strong>
+              <small>Depart Date</small><strong id="fDepartVal">Select date</strong>
             </button>
             <button type="button" class="ffield is-empty" id="fReturnBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fDatesPop">
-              <small>Return</small><strong id="fReturnVal">Select date</strong>
+              <small>Return Date</small><strong id="fReturnVal">Select date</strong>
             </button>
             <div class="fpop fpop--dates" id="fDatesPop" role="dialog" aria-label="Choose your dates" hidden>
               <div class="fcal__head">
@@ -132,7 +132,7 @@
           <div class="fboats">
             <div class="fpop-wrap">
               <button type="button" class="ffield" id="fDepBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fDepPop">
-                <small id="fDepLbl">To island</small><strong id="fDepVal">Time</strong>
+                <small id="fDepLbl">Depart Time</small><strong id="fDepVal">Time</strong>
               </button>
               <div class="fpop fpop--ret" id="fDepPop" role="dialog" aria-label="Boat to the island" hidden>
                 <p class="fpop__label" id="fDepPopLbl">Kuala Besut Jetty → Perhentian Island</p>
@@ -141,7 +141,7 @@
             </div>
             <div class="fpop-wrap fret-wrap">
               <button type="button" class="ffield" id="fRetBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="fRetPop">
-                <small>Return boat</small><strong id="fRetVal">Time</strong>
+                <small>Return Time</small><strong id="fRetVal">Time</strong>
               </button>
               <div class="fpop fpop--ret fpop--right" id="fRetPop" role="dialog" aria-label="Return boat time" hidden>
                 <p class="fpop__label">Perhentian Island → Kuala Besut Jetty</p>
@@ -184,22 +184,22 @@
         <form class="apanel__row" id="aForm" novalidate>
           <div class="froute aroute">
             <label class="ffield afield" id="aPickBox">
-              <small>Pick-up</small>
+              <small>Pick-up Point</small>
               <span class="aslot" id="aPickSlot"></span>
             </label>
             <button type="button" class="froute__icon" id="aSwap" aria-label="Swap pick-up and drop-off">⇄</button>
             <label class="ffield afield" id="aDropBox">
-              <small>Drop-off</small>
+              <small>Drop-off Point</small>
               <span class="aslot" id="aDropSlot"></span>
             </label>
           </div>
           <!-- Dates: same two-box calendar as Book a ferry -->
           <div class="fpop-wrap fdates">
             <button type="button" class="ffield is-empty" id="aDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="aDatesPop">
-              <small>Pick-up date</small><strong id="aDateVal">Select date</strong>
+              <small>Pick-up Date</small><strong id="aDateVal">Select date</strong>
             </button>
             <button type="button" class="ffield is-empty aret" id="aRetDateBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="aDatesPop">
-              <small>Return date</small><strong id="aRetDateVal">Select date</strong>
+              <small>Return Date</small><strong id="aRetDateVal">Select date</strong>
             </button>
             <div class="fpop fpop--dates" id="aDatesPop" role="dialog" aria-label="Choose your dates" hidden>
               <div class="fcal__head">
@@ -235,7 +235,7 @@
           </div>
 
           <label class="ffield afield is-empty">
-            <small>Transfer</small>
+            <small>Transfer Type</small>
             <select id="aType" aria-label="Transfer type"></select>
           </label>
           <!-- Passengers: same typed Adult / Child popover as Book a ferry -->
@@ -276,6 +276,9 @@
       <div class="hpanel" id="panel-schedule" role="tabpanel" aria-label="Ferry Schedule" hidden>
         <h2 class="hpanel__title">Ferry Schedule</h2>
         <div class="sched" data-sched></div>
+        <h2 class="hpanel__title hpanel__title--next">Airport Transfer Schedule</h2>
+        <div class="sched" data-asched></div>
+        <h2 class="hpanel__title hpanel__title--next">Ferry &amp; Airport Transfer Prices</h2>
         <div class="sched__block sched__prices" data-prices></div>
       </div>
     </div>
@@ -398,6 +401,6 @@
   <div id="bkBody"></div>
 </dialog>
 
-<script src="script.js?v=53"></script>
+<script src="script.js?v=55"></script>
 </body>
 </html>

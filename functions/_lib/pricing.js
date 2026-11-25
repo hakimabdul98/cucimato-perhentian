@@ -12,9 +12,7 @@ export const FERRY = {
    private: RM per vehicle, per way, one price per size in VEHICLES (published rate + RM20). */
 export const AIRPORT = {
   KBR: { name: "Kota Bharu Airport (KBR)", airport: true, shared: { adult: 35, child: 30 }, private: [130, 215, 265, 315] },
-  KBC: { name: "Kota Bharu City", airport: false, shared: { adult: 35, child: 30 }, private: [130, 215, 265, 315] },
   TGG: { name: "Kuala Terengganu Airport (TGG)", airport: true, shared: null, private: [200, 275, 325, 375] },
-  KTC: { name: "Kuala Terengganu City", airport: false, shared: null, private: [215, 290, 350, 390] },
 };
 export const VEHICLES = [
   { max: 4, name: "Car (1–4 pax)" },
@@ -57,7 +55,7 @@ export function quote(b) {
 
   if (b.type === "airport") {
     const a = AIRPORT[b.airport];
-    if (!a) return { error: "Choose an airport or city." };
+    if (!a) return { error: "Choose an airport." };
     const service = b.service === "shared" ? "shared" : b.service === "private" ? "private" : "";
     if (!service) return { error: "Choose shared or private." };
     const adults = Number(b.adults), children = Number(b.children || 0);
