@@ -1,6 +1,6 @@
 /* Server-side prices. The browser never decides the amount: it only sends the
    trip details, and the price is worked out here again.
-   Keep in step with FERRY / AIRPORT in script.js. */
+   Keep in step with FERRY / GROUND_TRIPS / AIRPORT in script.js. */
 
 export const FERRY = {
   return: { adult: 80, child: 50 },
@@ -11,6 +11,13 @@ export const FERRY_ADDONS = {
   perhentian: { name: "Perhentian Island Snorkeling Trip", adult: 55, child: 30 },
   rawa: { name: "Rawa Island Snorkeling Trip", adult: 80, child: 50 },
   redang: { name: "Redang Island Snorkeling Trip", adult: 180, child: 100 },
+};
+
+// Ground packages (Ferry + snorkeling trip): return ferry + one snorkeling trip, per person. Keep in step with GROUND_TRIPS in script.js.
+export const GROUND = {
+  perhentian: { name: "Ferry + Perhentian Island Snorkeling Trip", adult: 135, child: 80 },
+  rawa: { name: "Ferry + Rawa Island Snorkeling Trip", adult: 155, child: 100 },
+  redang: { name: "Ferry + Redang Island Snorkeling Trip", adult: 200, child: 120 },
 };
 
 /* Airport transfer to/from Kuala Besut Jetty.
@@ -75,6 +82,21 @@ export function quote(b) {
       amount: adults * p.adult + children * p.child + addonAmount,
       purpose: `Ferry ticket ${oneway ? "one-way" : "return"}: ${from} → ${to}${addons.length ? " + " + addons.map(x => FERRY_ADDONS[x.id].name).join(" + ") : ""}`,
       summary: { type: "ferry", trip: b.trip, from, to, date: b.date, time: b.time, returnDate: oneway ? "" : b.returnDate, returnTime: oneway ? "" : b.returnTime, adults, children, addons },
+    };
+  }
+
+  if (b.type === "ground") {
+    const g = GROUND[b.package];
+    if (!g) return { error: "Choose a package." };
+    if (oneway) return { error: "Packages include a return ferry." };
+    if (b.returnDate <= b.date) return { error: "Packages need at least 1 night on the island (2D1N)." };
+    const adults = Number(b.adults), children = Number(b.children || 0);
+    if (!count(adults, 1, 99) || !count(children, 0, 99)) return { error: "Check the number of guests." };
+    if (!isTime(b.time) || !isTime(b.returnTime)) return { error: "Choose your boat times." };
+    return {
+      amount: adults * g.adult + children * g.child,
+      purpose: `${g.name}: ${JETTY} ⇄ ${ISLAND}`,
+      summary: { type: "ground", package: b.package, trip: "return", from: JETTY, to: ISLAND, date: b.date, time: b.time, returnDate: b.returnDate, returnTime: b.returnTime, adults, children },
     };
   }
 

@@ -64,9 +64,10 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Hand the trip details to the booking app now; it confirms them once HitPay says "paid".
-  const pick = ["type", "trip", "direction", "airport", "service", "date", "returnDate", "time", "returnTime", "adults", "children"];
+  const pick = ["type", "trip", "direction", "airport", "service", "package", "date", "returnDate", "time", "returnTime", "adults", "children"];
   const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
-  if (body.type !== "airport") booking.addons = q.summary.addons || [];
+  if (body.type === "ferry") booking.addons = q.summary.addons || [];
+  if (body.type !== "airport") booking.stay = clean(body.stay, 80);   // where they stay on the island (optional)
   booking.base = q.amount; booking.fee = fee; booking.feePercent = TXN_FEE_PERCENT;
   if (promo) { booking.promo = promo.code; booking.discount = discount; }
   // Airport extras: passengers and vehicle as priced here, plus flight details / city address from the customer

@@ -155,7 +155,7 @@ function renderFerryPanel() {
   const go = $("fGo");
   const price = oneWay ? FERRY.oneWay : FERRY;
   const total = price.adult == null ? null : adults * price.adult + children * (price.child ?? 0);
-  const missing = !depart ? "Select date" : !oneWay && !ret ? "Select return date" : !departTime ? "Select boat time" : !oneWay && !returnTime ? "Select return time" : !adults ? "Enter passengers" : "";
+  const missing = !depart ? "Select date" : !oneWay && !ret ? "Select return date" : !departTime ? "Select depart time" : !oneWay && !returnTime ? "Select return time" : !adults ? "Enter passengers" : "";
   if (missing) {
     go.textContent = missing;
     go.setAttribute("aria-disabled", "true");
@@ -288,7 +288,7 @@ const posterIncludes = (p) => [
   p.stay,
   "Snorkeling Perhentian Island trip",
   "Equipment provided",
-  "Round trip transfer boat",
+  "Return ferry transfer",
   ...(p.breakfast ? ["Free breakfast buffet"] : []),
   "Free lunch",
   "Free gift",
@@ -356,18 +356,18 @@ renderBento();
    poster. price: null = "Price on request".
    ========================================================= */
 const GROUND_TRIPS = [
-  { id: "perhentian", name: "Ferry + Perhentian Island Snorkeling Trip", img: "ground-perhentian", pos: "50% 30%", price: 135,
+  { id: "perhentian", name: "Ferry + Perhentian Island Snorkeling Trip", img: "ground-perhentian", pos: "50% 30%", price: 135, child: 80,
     snorkel: "5 Points Snorkeling Activity (Turtle, Fish, Corals & Refreshing Water)" },
-  { id: "rawa", name: "Ferry + Rawa Island Snorkeling Trip", img: "ground-rawa", pos: "50% 55%", price: 155,
+  { id: "rawa", name: "Ferry + Rawa Island Snorkeling Trip", img: "ground-rawa", pos: "50% 55%", price: 155, child: 100,
     snorkel: "4 Points Snorkeling Activity (Rawa Island, Serenggeh Island, Bird Temple & Romantic Beach)" },
-  { id: "redang", name: "Ferry + Redang Island Snorkeling Trip", img: "ground-redang", pos: "50% 60%", price: 200,
+  { id: "redang", name: "Ferry + Redang Island Snorkeling Trip", img: "ground-redang", pos: "50% 60%", price: 200, child: 120,
     snorkel: "7 Points Snorkeling Activity (Turtle, Fish, Redang Island, Lang Tengah Island)" },
 ];
 // Same for every trip; "{snorkel}" is replaced with that trip's snorkeling line
 const GROUND_INCLUDES = [
   "Minimum stay 2D1N",
   "Resorts or hotels around Perhentian Island (book your own stay)",
-  "Round trip transfer boat",
+  "Return ferry transfer",
   "{snorkel}",
   "Snorkeling Guide",
   "Snorkeling Equipment Provided",
@@ -404,6 +404,7 @@ function openGroundInfo(id) {
       <ul class="pinfo__list">${GROUND_INCLUDES.map(x => `<li>${x === "{snorkel}" ? t.snorkel : x}</li>`).join("")}</ul>
       <div class="pinfo__prices">
         <div><small>This trip, per adult</small><strong>${t.price ? rm(t.price) : "On request"}</strong></div>
+        ${t.child ? `<div><small>Child (1–9 years)</small><strong>${rm(t.child)}</strong></div>` : ""}
       </div>
       <p class="pinfo__inc">Guide · Snorkeling · Sea transfer</p>
       <button type="button" class="btn" data-book="ground" data-id="${t.id}">Book Now</button>
@@ -778,7 +779,7 @@ const timeSelect = (name, times) => `<select name="${name}" required>
   <option value=""${bk[name] ? "" : " selected"} disabled>Select time</option>
   ${times.map(t => `<option${t === bk[name] ? " selected" : ""}>${t}</option>`).join("")}</select>`;
 
-// Boat to the island: same times as the Ferry Schedule tab
+// Depart times: same times as the Ferry Schedule tab
 const DEPART_TIMES = FERRY.departTimes;
 
 const bkSheet = $("bookSheet");
@@ -833,9 +834,10 @@ function ferryPrice() {
 
 function bkPriceOther() {
   if (bk.mode === "ground") {
-    const p = bkItem().price;
+    const t = GROUND_TRIPS.find(x => x.id === bk.id), p = t.price, c = t.child;
     if (!p) return { lines: [], total: null };
-    return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p]], total: bk.adults * p, childNote: bk.children > 0 };
+    if (c == null) return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p]], total: bk.adults * p, childNote: bk.children > 0 };
+    return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p], ...(bk.children ? [[`${rm(c)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * c]] : [])], total: bk.adults * p + bk.children * c };
   }
   return null;
 }
@@ -865,13 +867,13 @@ function renderBooking() {
         <p class="bk__sub">${it.sub}</p>
       </div>
       ${bk.mode === "ferry" ? ferryTripSummary() + (payMode() ? ferryAddonPicker() : "") : bk.mode === "airport" ? airportTripSummary() : `<div class="bk__grid">
-        <label class="bk__f">${hotel ? "Check-in" : "Depart"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
-        <label class="bk__f">${hotel ? "Check-out" : "Return"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
+        <label class="bk__f">${hotel ? "Check-in" : "Depart Date"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
+        <label class="bk__f">${hotel ? "Check-out" : "Return Date"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
       </div>
       ${hotel ? "" : `<div>
         <div class="bk__grid">
-          <label class="bk__f">Boat to the island${timeSelect("dep", DEPART_TIMES)}</label>
-          <label class="bk__f">Return boat${timeSelect("ret", FERRY.returnTimes)}</label>
+          <label class="bk__f">Depart Time${timeSelect("dep", DEPART_TIMES)}</label>
+          <label class="bk__f">Return Time${timeSelect("ret", FERRY.returnTimes)}</label>
         </div>
         <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
       <div class="bk__grid">${pax("adults", "Adults", "e.g. 2")}${pax("children", "Children (1–9 years)", "0")}</div>`}
@@ -977,7 +979,7 @@ function renderBookingDone(it) {
   const steps = hotel
     ? [["ok", "Request received", "Just now"], ["now", "Checking room availability", "Usually within 24 hours"], ["", "Invoice and 50% deposit", "Sent by email and WhatsApp"], ["", "Booking confirmed", "Receipt after the deposit"]]
     : [["ok", "Booking received", "Just now"], ["now", "Invoice on its way", "Within 24 hours, by email and WhatsApp"], ["", "Pay the 50% deposit", "Bank transfer, details in the invoice"], ["", "Booking confirmed", "Receipt after the deposit"]];
-  const msg = [`Hi Cucimato! I just ${hotel ? "sent an availability request" : "booked"} on your website.`, `${it.name}`, `Dates: ${when}`, `Guests: ${people}`, ...(hotel ? [] : bk.toJetty ? ["One-way to Kuala Besut Jetty", `Boat from the island: ${bk.dep}`] : [`Boat to the island: ${bk.dep}`, ...(bk.oneway ? ["One-way"] : [`Return boat: ${bk.ret}`])]), `Name: ${bk.name}`].join("\n");
+  const msg = [`Hi Cucimato! I just ${hotel ? "sent an availability request" : "booked"} on your website.`, `${it.name}`, `Dates: ${when}`, `Guests: ${people}`, ...(hotel ? [] : bk.toJetty ? ["One-way to Kuala Besut Jetty", `Depart time (from the island): ${bk.dep}`] : [`Depart time: ${bk.dep}`, ...(bk.oneway ? ["One-way"] : [`Return time: ${bk.ret}`])]), `Name: ${bk.name}`].join("\n");
   $("bkBody").innerHTML = `
     <div class="bk__done">
       <div class="bk__tick" aria-hidden="true">✓</div>
@@ -1002,9 +1004,10 @@ function bkValidate() {
   if (bk.mode !== "airport") {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
+  if (bk.mode === "ground" && bk.end === bk.start) return "Packages need at least 1 night on the island (2D1N). Please choose a later return date.";
   if (!inSeason(fromIso(bk.start)) || !inSeason(fromIso(bk.end))) return OFF_SEASON_MSG;
-  if (bk.mode !== "hotel" && !bk.dep) return bk.toJetty ? "Please choose your boat time from the island." : "Please choose your boat time to the island.";
-  if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose a return boat time.";
+  if (bk.mode !== "hotel" && !bk.dep) return "Please choose your depart time.";
+  if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose your return time.";
   if (!bk.adults) return "Please enter the number of adults.";
   if (bk.adults + bk.children > 99) return "For groups above 99 guests, please WhatsApp us.";
   }
@@ -1016,7 +1019,7 @@ function bkValidate() {
 }
 
 /* ---------- Online payment (HitPay through /api/pay on Cloudflare) ----------
-   Book a ferry and Airport Transfer are paid online. The server works the price out
+   Book a ferry, Ferry + snorkeling packages and Airport Transfer are paid online. The server works the price out
    again; the page only sends the trip details. If payment isn't available (e.g. the
    site runs somewhere without the payment functions), ferry falls back to the old
    "invoice by email" booking and airport falls back to WhatsApp. */
@@ -1031,7 +1034,7 @@ fetch(PAY.endpoint, { cache: "no-store" })
   .then(r => r.ok ? r.json() : null)
   .then(d => { PAY.enabled = Boolean(d?.enabled); PAY.test = Boolean(d?.test); if (bkSheet.open && !bk.done && !bk.sending) renderBooking(); })
   .catch(() => {});
-const payMode = () => PAY.enabled && (bk.mode === "ferry" || bk.mode === "airport");
+const payMode = () => PAY.enabled && (bk.mode === "ferry" || bk.mode === "airport" || (bk.mode === "ground" && GROUND_TRIPS.find(x => x.id === bk.id)?.child != null));
 
 function payPayload() {
   const who = { name: bk.name.trim(), email: bk.email.trim(), phone: bkPhone() };
@@ -1043,7 +1046,9 @@ function payPayload() {
       ...(a.isAirport ? { arrAirline: airArrives(a) ? f("arrAirline") : "", arrFlight: airArrives(a) ? f("arrFlight").toUpperCase() : "",
         depAirline: airLeaves(a) ? f("depAirline") : "", depFlight: airLeaves(a) ? f("depFlight").toUpperCase() : "" } : { address: f("address") }) };
   }
-  return { type: "ferry", trip: bk.oneway ? "oneway" : "return", direction: bk.toJetty ? "toJetty" : "toIsland",
+  if (bk.mode === "ground") return { type: "ground", package: bk.id, trip: "return", date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret,
+    adults: bk.adults, children: bk.children, stay: bk.stay.trim(), ...who, promo: bk.promoApplied?.code || "" };
+  return { type: "ferry", trip: bk.oneway ? "oneway" : "return", stay: bk.stay.trim(), direction: bk.toJetty ? "toJetty" : "toIsland",
     date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who, promo: bk.promoApplied?.code || "",
     addons: [...(bk.ferryAddons || new Map())].map(([id, n]) => ({ id, adults: n.adults, children: n.children })).filter(a => a.adults + a.children > 0) };
 }
