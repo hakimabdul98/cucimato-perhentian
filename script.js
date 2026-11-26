@@ -374,29 +374,124 @@ const GROUND_INCLUDES = [
   "Free gift",
 ];
 
-/* Snorkeling on Ferry + snorkeling packages starts at 10:00 AM.
-   2D1N: on the arrival day, so only the 8:00 AM and 9:00 AM boats reach the island in time.
-   3D2N or longer: on day 2, any depart time. Keep in step with functions/_lib/pricing.js. */
-const SNORKEL = { time: "10:00 AM", departTimes2D1N: ["8:00 AM", "9:00 AM"] };
+/* Snorkeling plan: Ferry + snorkeling packages, and snorkeling add-ons on a return ferry.
+   Trips start at 9:00 AM (Redang) or 10:00 AM (Perhentian, Rawa). One trip per day.
+   Day 1 (arrival day): the 8:00 AM boat for Redang, the 8:00 or 9:00 AM boat for Perhentian/Rawa.
+   Last day (going home): no snorkeling, guests just enjoy the island.
+   Packages: 2D1N = package trip on day 1, no add-on. 3D2N or longer: any day but the last, plus one
+   add-on of another island. Add-ons are only for return ferry tickets (never one-way).
+   Keep in step with SNORKEL in functions/_lib/pricing.js. */
+const SNORKEL = {
+  start: { perhentian: "10:00 AM", rawa: "10:00 AM", redang: "9:00 AM" },
+  early: { perhentian: ["8:00 AM", "9:00 AM"], rawa: ["8:00 AM", "9:00 AM"], redang: ["8:00 AM"] },
+};
 const SNORKEL_WA_MSG = "Hi Cucimato! I'd like to arrange my snorkeling trip.\nBooking name: \nTravel dates: ";
-const groundNights = () => bk.start && bk.end ? Math.round((fromIso(bk.end) - fromIso(bk.start)) / 864e5) : 0;
-const groundDepartTimes = () => groundNights() === 1 ? SNORKEL.departTimes2D1N : DEPART_TIMES;
-// Snorkeling day: arrival day for 2D1N, day 2 for longer stays
-const snorkelDay = () => { const n = groundNights(); if (n < 1) return null; const d = fromIso(bk.start); if (n > 1) d.setDate(d.getDate() + 1); return d; };
-function snorkelNote() {
-  const d = snorkelDay(), n = groundNights();
-  const when = !d ? `Snorkeling starts at <b>${SNORKEL.time}</b>: on your arrival day for 2D1N (take the 8:00 AM or 9:00 AM boat), or on day 2 for 3D2N and longer stays.`
-    : n === 1 ? `Snorkeling: <b>${SNORKEL.time}, ${shortDate(d)}</b> (arrival day). Only the 8:00 AM and 9:00 AM boats reach the island in time.`
-    : `Snorkeling: <b>${SNORKEL.time}, ${shortDate(d)}</b> (day 2). Any depart time works.`;
-  return `${when} Kindly <a href="${waLink(SNORKEL_WA_MSG)}" target="_blank" rel="noopener">WhatsApp us</a> for snorkeling arrangement.`;
+const islandName = (id) => ({ perhentian: "Perhentian Island", rawa: "Rawa Island", redang: "Redang Island" }[id] || id);
+const isoAdd = (iso, n) => { const d = fromIso(iso); d.setDate(d.getDate() + n); return isoDate(d); };
+const joinOr = (a) => a.length > 1 ? a.slice(0, -1).join(", ") + " or " + a[a.length - 1] : a[0];
+// Days of the stay (day 1 = travel date). Empty when days can't be planned (one-way ferry, dates not chosen).
+function planDays() {
+  if (bk.mode !== "ground" && !(bk.mode === "ferry" && !bk.oneway)) return [];
+  if (!bk.start || !bk.end || bk.end < bk.start) return [];
+  const n = Math.round((fromIso(bk.end) - fromIso(bk.start)) / 864e5) + 1;
+  return Array.from({ length: n }, (_, k) => ({ day: k + 1, date: isoAdd(bk.start, k) }));
 }
-// Dates changed in the Ferry + snorkeling sheet: update the depart times and the snorkeling note
-function refreshGroundSnorkel() {
-  if (bk.mode !== "ground") return;
-  if (bk.dep && !groundDepartTimes().includes(bk.dep)) bk.dep = "";
-  const sel = bkSheet.querySelector('select[name="dep"]');
-  if (sel) sel.outerHTML = timeSelect("dep", groundDepartTimes());
+// Days a snorkeling trip can be on: every day except the last (going home)
+const snorkelDays = () => planDays().slice(0, -1);
+// Every snorkeling trip on this booking: [{ id, day, included }]
+function planTrips() {
+  const t = [];
+  if (bk.mode === "ground") t.push({ id: bk.id, day: bk.snorkDay || 0, included: true });
+  for (const [id, n] of bk.ferryAddons || []) t.push({ id, day: n.day || 0, included: false });
+  return t;
+}
+// Why trip `id` can't be on `day` ("" = fine). Ferry: boat times are fixed in the panel, so they count too.
+function dayProblem(id, day, nDays, others) {
+  if (day >= nDays) return "last day";
+  if (others.some(o => o.day === day)) return "another trip that day";
+  if (bk.mode === "ferry" && day === 1 && bk.dep && !SNORKEL.early[id].includes(bk.dep)) return `needs the ${joinOr(SNORKEL.early[id])} boat`;
+  return "";
+}
+// Snorkeling trips a customer may add. Ferry: return tickets with at least one free day. Packages: 3D2N or longer, another island.
+function addonChoices() {
+  const n = planDays().length;
+  if (bk.mode === "ferry") return !bk.oneway && n >= 2 ? FERRY_ADDONS : [];
+  if (bk.mode !== "ground" || n === 2) return [];
+  return FERRY_ADDONS.filter(a => a.id !== bk.id);
+}
+// Ferry + snorkeling: boat times that fit the planned trips
+function groundDepartTimes() {
+  const n = planDays().length, first = planTrips().filter(t => t.day === 1 && n > 1);
+  return first.length ? DEPART_TIMES.filter(x => first.every(t => SNORKEL.early[t.id].includes(x))) : DEPART_TIMES;
+}
+const groundReturnTimes = () => FERRY.returnTimes;
+// Keep the plan valid after any change: default days, drop trips that can't be added, clear boat times that no longer fit
+function normalisePlan() {
+  if (!bk.ferryAddons) bk.ferryAddons = new Map();
+  const days = planDays(), n = days.length;
+  const okIds = addonChoices().map(a => a.id);
+  for (const id of [...bk.ferryAddons.keys()]) if (!okIds.includes(id)) bk.ferryAddons.delete(id);
+  if (bk.mode === "ground") {
+    if (n < 2) bk.snorkDay = 0;              // no dates yet, or same-day dates (packages need 1 night)
+    else if (n === 2) bk.snorkDay = 1;
+    else if (!bk.snorkDayPicked || !bk.snorkDay || bk.snorkDay >= n) bk.snorkDay = 2;
+  }
+  // add-ons: keep a valid day, otherwise pick one (day 2 onwards first, then day 1; never the last day)
+  const order = n ? [...days.slice(1, -1).map(d => d.day), 1].filter(d => d < n) : [];
+  for (const [id, a] of bk.ferryAddons) {
+    const others = planTrips().filter(t => t.id !== id && t.day);
+    if (a.day && a.day < n && !dayProblem(id, a.day, n, others)) continue;
+    a.day = order.find(d => !dayProblem(id, d, n, others)) || 0;
+  }
+  if (bk.mode === "ground") {
+    if (bk.dep && !groundDepartTimes().includes(bk.dep)) bk.dep = "";
+    if (bk.ret && !groundReturnTimes().includes(bk.ret)) bk.ret = "";
+  }
+}
+const daySelect = (name, id, cur, n, others, days) => `<select name="${name}">
+  <option value=""${cur ? "" : " selected"} disabled>Choose a day</option>
+  ${days.slice(0, -1).map(d => { const why = dayProblem(id, d.day, n, others); return `<option value="${d.day}"${d.day === cur ? " selected" : ""}${why ? " disabled" : ""}>Day ${d.day} · ${shortDate(fromIso(d.date))}${why ? ` (${why})` : ""}</option>`; }).join("")}</select>`;
+// Package trip row (Ferry + snorkeling): which day the included snorkeling is
+function includedRow() {
+  if (bk.mode !== "ground") return "";
+  const days = planDays(), n = days.length, name = `${islandName(bk.id)} snorkeling (included)`;
+  if (n < 2) return `<p class="bk__lbl">${name}</p><small class="bk__hint">Choose your dates (at least 1 night) to plan the snorkeling day.</small>`;
+  if (n === 2) return `<p class="bk__lbl">${name}</p><p class="bk__fixed">Day 1 · ${shortDate(fromIso(days[0].date))} (arrival day)</p><small class="bk__hint">Add-on snorkeling is for stays of 3D2N or longer.</small>`;
+  const others = planTrips().filter(t => !t.included && t.day);
+  return `<label class="bk__f">${name}${daySelect("sday-pkg", bk.id, bk.snorkDay, n, others, days)}</label>`;
+}
+// When each trip happens + the WhatsApp note
+function snorkelNote() {
+  const days = planDays(), n = days.length;
+  const lines = planTrips().filter(t => t.day && t.day < n).sort((a, b) => a.day - b.day).map(t =>
+    `<li><b>${islandName(t.id).replace(" Island", "")}</b>: ${SNORKEL.start[t.id]}, ${shortDate(fromIso(days[t.day - 1].date))} (day ${t.day}${t.day === 1 ? ", arrival" : ""})</li>`);
+  const rules = [];
+  const first = planTrips().filter(t => t.day === 1 && n > 1);
+  if (first.length) rules.push(`Snorkeling on day 1 needs the ${joinOr(DEPART_TIMES.filter(x => first.every(t => SNORKEL.early[t.id].includes(x))))} boat.`);
+  const intro = !n && bk.mode === "ground"
+    ? `Snorkeling starts at <b>${SNORKEL.start[bk.id]}</b>. 2D1N: on your arrival day (${joinOr(SNORKEL.early[bk.id])} boat). 3D2N or longer: any day except your last day, and you can add another island.`
+    : lines.length ? `<ul class="bk__plan">${lines.join("")}</ul>${rules.join(" ")}` : "";
+  return `${intro} Kindly <a href="${waLink(SNORKEL_WA_MSG)}" target="_blank" rel="noopener">WhatsApp us</a> for snorkeling arrangement.`;
+}
+// Re-draw the planner parts of the sheet after a change (the dropdown stays open)
+function refreshPlan() {
+  if (bk.mode !== "ground" && bk.mode !== "ferry") return;
+  normalisePlan();
+  const key = addonChoices().map(a => a.id).join();
+  if ($("bkFAddonWrap") && $("bkFAddonWrap").dataset.key !== key) { $("bkFAddonWrap").dataset.key = key; $("bkFAddonWrap").innerHTML = ferryAddonPicker(); }
+  if ($("bkFAddonList")) $("bkFAddonList").innerHTML = addonListHTML();
+  if ($("bkFAddonVal")) $("bkFAddonVal").textContent = ferryAddonSummary();
+  if ($("bkFAddonPax")) $("bkFAddonPax").innerHTML = ferryAddonPax();
+  if ($("bkIncl")) $("bkIncl").innerHTML = includedRow();
   if ($("bkSnork")) $("bkSnork").innerHTML = snorkelNote();
+  if (bk.mode === "ground") {
+    for (const [name, times] of [["dep", groundDepartTimes()], ["ret", groundReturnTimes()]]) {
+      const sel = bkSheet.querySelector(`select[name="${name}"]`);
+      const have = sel ? [...sel.options].slice(1).map(o => o.value).join() : "";
+      if (sel && (have !== times.join() || sel.value !== (bk[name] || ""))) sel.outerHTML = timeSelect(name, times);
+    }
+  }
+  refreshFerryTotals();
 }
 
 function renderGround() {
@@ -432,7 +527,7 @@ function openGroundInfo(id) {
         ${t.child ? `<div><small>Child (1–9 years)</small><strong>${rm(t.child)}</strong></div>` : ""}
       </div>
       <p class="pinfo__inc">Guide · Snorkeling · Sea transfer</p>
-      <p class="pinfo__snork">Snorkeling starts at 10:00 AM: on your arrival day for 2D1N (8:00 AM or 9:00 AM boat), or on day 2 for 3D2N and longer stays. Kindly WhatsApp us for snorkeling arrangement.</p>
+      <p class="pinfo__snork">Snorkeling starts at ${SNORKEL.start[t.id]}. 2D1N: on your arrival day, so take the ${joinOr(SNORKEL.early[t.id])} boat. 3D2N or longer: any day except your last day (on day 1, take the ${joinOr(SNORKEL.early[t.id])} boat), and you can add another island's snorkeling trip. Kindly WhatsApp us for snorkeling arrangement.</p>
       <button type="button" class="btn" data-book="ground" data-id="${t.id}">Book Now</button>
     </div>`);
 }
@@ -828,6 +923,7 @@ function openBooking(mode, id = "") {
   bk.toJetty = mode === "ferry" && toJetty();
   if (mode === "ferry") Object.assign(bk, { start: isoDate(ferry.depart), end: isoDate(bk.oneway ? ferry.depart : ferry.ret), dep: ferry.departTime || "", ret: bk.oneway ? "" : ferry.returnTime || "", adults: ferry.adults, children: ferry.children });
   if ($("pkgInfo").open) $("pkgInfo").close();
+  bk.snorkDay = 0; bk.snorkDayPicked = false; normalisePlan();
   renderBooking();
   bkSheet.showModal();
 }
@@ -837,16 +933,21 @@ function bkPrice() {
   if (bk.mode === "ferry") {
     const f = ferryPrice();
     if (f.total == null) return f;
-    const extra = FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).flatMap(a => {
-      const n = bk.ferryAddons.get(a.id);
-      return [
-        ...(n.adults ? [[`${a.name} · ${rm(a.adult)} × ${n.adults} adult${n.adults > 1 ? "s" : ""}`, a.adult * n.adults]] : []),
-        ...(n.children ? [[`${a.name} · ${rm(a.child)} × ${n.children} child${n.children > 1 ? "ren" : ""}`, a.child * n.children]] : []),
-      ];
-    });
+    const extra = addonLines();
     return { lines: [...f.lines, ...extra], total: f.total + extra.reduce((t, l) => t + l[1], 0) };
   }
   return bkPriceOther();
+}
+
+// Price lines for the chosen snorkeling add-ons
+function addonLines() {
+  return FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).flatMap(a => {
+    const n = bk.ferryAddons.get(a.id);
+    return [
+      ...(n.adults ? [[`${a.name} · ${rm(a.adult)} × ${n.adults} adult${n.adults > 1 ? "s" : ""}`, a.adult * n.adults]] : []),
+      ...(n.children ? [[`${a.name} · ${rm(a.child)} × ${n.children} child${n.children > 1 ? "ren" : ""}`, a.child * n.children]] : []),
+    ];
+  });
 }
 
 function ferryPrice() {
@@ -863,7 +964,9 @@ function bkPriceOther() {
     const t = GROUND_TRIPS.find(x => x.id === bk.id), p = t.price, c = t.child;
     if (!p) return { lines: [], total: null };
     if (c == null) return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p]], total: bk.adults * p, childNote: bk.children > 0 };
-    return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p], ...(bk.children ? [[`${rm(c)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * c]] : [])], total: bk.adults * p + bk.children * c };
+    const extra = addonLines();
+    return { lines: [[`${rm(p)} × ${bk.adults} adult${bk.adults > 1 ? "s" : ""}`, bk.adults * p], ...(bk.children ? [[`${rm(c)} × ${bk.children} child${bk.children > 1 ? "ren" : ""}`, bk.children * c]] : []), ...extra],
+      total: bk.adults * p + bk.children * c + extra.reduce((t, l) => t + l[1], 0) };
   }
   return null;
 }
@@ -892,18 +995,18 @@ function renderBooking() {
         <h3 class="bk__title" id="bkTitle">${esc(it.name)}</h3>
         <p class="bk__sub">${it.sub}</p>
       </div>
-      ${bk.mode === "ferry" ? ferryTripSummary() + (payMode() ? ferryAddonPicker() : "") : bk.mode === "airport" ? airportTripSummary() : `<div class="bk__grid">
+      ${bk.mode === "ferry" ? ferryTripSummary() + (payMode() && addonChoices().length ? ferryAddonPicker() + (planDays().length && bk.ferryAddons?.size ? `<div class="bk__snork" id="bkSnork">${snorkelNote()}</div>` : `<div id="bkSnork" hidden></div>`) : "") : bk.mode === "airport" ? airportTripSummary() : `<div class="bk__grid">
         <label class="bk__f">${hotel ? "Check-in" : "Depart Date"}<input type="date" name="start" min="${min}" max="${max}" value="${bk.start}" required></label>
         <label class="bk__f">${hotel ? "Check-out" : "Return Date"}<input type="date" name="end" min="${bk.start || min}" max="${max}" value="${bk.end}" required></label>
       </div>
       ${hotel ? "" : `<div>
         <div class="bk__grid">
           <label class="bk__f">Depart Time${timeSelect("dep", bk.mode === "ground" ? groundDepartTimes() : DEPART_TIMES)}</label>
-          <label class="bk__f">Return Time${timeSelect("ret", FERRY.returnTimes)}</label>
+          <label class="bk__f">Return Time${timeSelect("ret", bk.mode === "ground" ? groundReturnTimes() : FERRY.returnTimes)}</label>
         </div>
-        <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small>
-        ${bk.mode === "ground" ? `<p class="bk__snork" id="bkSnork">${snorkelNote()}</p>` : ""}</div>`}
-      <div class="bk__grid">${pax("adults", "Adults", "e.g. 2")}${pax("children", "Children (1–9 years)", "0")}</div>`}
+        <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
+      <div class="bk__grid">${pax("adults", "Adults", "e.g. 2")}${pax("children", "Children (1–9 years)", "0")}</div>
+      ${bk.mode === "ground" ? `<div class="bk__planbox"><div id="bkIncl">${includedRow()}</div>${payMode() ? `<div id="bkFAddonWrap" data-key="${addonChoices().map(a => a.id).join()}">${ferryAddonPicker()}</div>` : ""}<div class="bk__snork" id="bkSnork">${snorkelNote()}</div></div>` : ""}`}
       ${hotel ? `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on activities (optional)</span><strong id="bkAddonVal">${addonSummary()}</strong></summary>
         <div class="bk__ddlist">${ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkaddon="${esc(a.value)}"${bk.addons.has(a.value) ? " checked" : ""}><span>${esc(a.label || a.value)}</span>${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</label>`).join("")}</div></details>`
         : bk.mode === "airport" ? "" : `<label class="bk__f">Where are you staying? (optional)<input type="text" name="stay" value="${esc(bk.stay)}" placeholder="Resort or hotel name" autocomplete="off"></label>`}
@@ -929,23 +1032,29 @@ function renderBooking() {
     </form>`;
 }
 
-// Book a ferry: optional snorkeling trip(s), same tick-list dropdown as the hotel add-ons
+// Snorkeling add-ons (Book a ferry, and a second island on Ferry + snorkeling packages): tick-list dropdown
 const ferryAddonSummary = () => {
   const names = FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).map(a => a.name.replace(" Snorkeling Trip", ""));
   return names.length ? names.join(", ") + " snorkeling" : "Select a trip";
 };
+const addonListHTML = () => addonChoices().map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkfaddon="${a.id}"${bk.ferryAddons?.has(a.id) ? " checked" : ""}><span>${a.name}</span><small>Adult ${rm(a.adult)} · Child ${rm(a.child)}</small></label>`).join("");
 function ferryAddonPicker() {
-  return `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on snorkeling trip (optional)</span><strong id="bkFAddonVal">${ferryAddonSummary()}</strong></summary>
-    <div class="bk__ddlist">${FERRY_ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkfaddon="${a.id}"${bk.ferryAddons?.has(a.id) ? " checked" : ""}><span>${a.name}</span><small>Adult ${rm(a.adult)} · Child ${rm(a.child)}</small></label>`).join("")}</div></details>
+  const ground = bk.mode === "ground";
+  if (!addonChoices().length) return "";
+  return `<details class="bk__dd"><summary><span class="bk__ddlbl">${ground ? "Add another island's snorkeling (optional)" : "Add-on snorkeling trip (optional)"}</span><strong id="bkFAddonVal">${ferryAddonSummary()}</strong></summary>
+    <div class="bk__ddlist" id="bkFAddonList">${addonListHTML()}</div></details>
     <div id="bkFAddonPax">${ferryAddonPax()}</div>
-    <small class="bk__hint">Choose how many people join each trip. We'll WhatsApp you to set the trip day.</small>`;
+    `;
 }
-// One row per chosen trip: how many adults / children join it (up to the number on the ferry booking)
+// One row per chosen trip: how many adults / children join it (up to the booking's numbers) and which day
 function ferryAddonPax() {
+  const days = planDays(), n = days.length;
   return FERRY_ADDONS.filter(a => bk.ferryAddons?.has(a.id)).map(a => {
-    const n = bk.ferryAddons.get(a.id);
-    const box = (key, label, max) => `<label class="bk__f">${label}<input type="number" name="fa-${key}-${a.id}" inputmode="numeric" min="0" max="${max}" value="${n[key]}"></label>`;
-    return `<div class="bk__fapax"><p class="bk__lbl">${a.name}</p><div class="bk__grid">${box("adults", "Adults", bk.adults)}${bk.children ? box("children", "Children (1–9 years)", bk.children) : ""}</div></div>`;
+    const cur = bk.ferryAddons.get(a.id);
+    const box = (key, label, max) => `<label class="bk__f">${label}<input type="number" name="fa-${key}-${a.id}" inputmode="numeric" min="0" max="${max}" value="${cur[key]}"></label>`;
+    const others = planTrips().filter(t => t.id !== a.id && t.day);
+    const day = !n ? "" : `<label class="bk__f">Snorkeling day${daySelect("sday-" + a.id, a.id, cur.day, n, others, days)}</label>`;
+    return `<div class="bk__fapax"><p class="bk__lbl">${a.name}</p><div class="bk__grid">${box("adults", "Adults", bk.adults)}${bk.children ? box("children", "Children (1–9 years)", bk.children) : ""}</div>${day}</div>`;
   }).join("");
 }
 const refreshFerryTotals = () => {
@@ -1019,8 +1128,16 @@ function renderBookingDone(it) {
 }
 
 function bkValidate() {
-  if (bk.mode === "ferry" && bk.ferryAddons) {
+  if ((bk.mode === "ferry" || bk.mode === "ground") && bk.ferryAddons) {
     for (const [id, n] of bk.ferryAddons) if (n.adults + n.children < 1) return `Enter how many people join the ${FERRY_ADDONS.find(a => a.id === id).name}, or untick it.`;
+    const n = planDays().length;
+    if (n) for (const t of planTrips()) {
+      const name = `${islandName(t.id)} snorkeling`;
+      if (!t.day) return `Please choose a day for the ${name}${bk.mode === "ferry" ? ", or change your boat times" : ""}.`;
+      if (t.day >= n) return `Snorkeling can't be on your last day. Please choose another day for the ${name}.`;
+      const why = dayProblem(t.id, t.day, n, planTrips().filter(o => o.id !== t.id && o.day));
+      if (why) return `The ${name} can't be on day ${t.day}: ${why}.`;
+    }
   }
   if (bk.mode === "airport") {
     const a = bk.air, has = (k) => String(bk[k] || "").trim().length >= 2;
@@ -1032,7 +1149,7 @@ function bkValidate() {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
   if (bk.mode === "ground" && bk.end === bk.start) return "Packages need at least 1 night on the island (2D1N). Please choose a later return date.";
-  if (bk.mode === "ground" && groundNights() === 1 && bk.dep && !SNORKEL.departTimes2D1N.includes(bk.dep)) return "For 2D1N, snorkeling starts at 10:00 AM on your arrival day, so please choose the 8:00 AM or 9:00 AM boat.";
+  if (bk.mode === "ground" && bk.dep && !groundDepartTimes().includes(bk.dep)) return `Snorkeling on day 1 needs the ${joinOr(groundDepartTimes())} boat.`;
   if (!inSeason(fromIso(bk.start)) || !inSeason(fromIso(bk.end))) return OFF_SEASON_MSG;
   if (bk.mode !== "hotel" && !bk.dep) return "Please choose your depart time.";
   if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose your return time.";
@@ -1074,11 +1191,12 @@ function payPayload() {
       ...(a.isAirport ? { arrAirline: airArrives(a) ? f("arrAirline") : "", arrFlight: airArrives(a) ? f("arrFlight").toUpperCase() : "",
         depAirline: airLeaves(a) ? f("depAirline") : "", depFlight: airLeaves(a) ? f("depFlight").toUpperCase() : "" } : { address: f("address") }) };
   }
+  const addons = [...(bk.ferryAddons || new Map())].map(([id, n]) => ({ id, adults: n.adults, children: n.children, ...(planDays().length ? { day: n.day } : {}) })).filter(a => a.adults + a.children > 0);
   if (bk.mode === "ground") return { type: "ground", package: bk.id, trip: "return", date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret,
-    adults: bk.adults, children: bk.children, stay: bk.stay.trim(), ...who, promo: bk.promoApplied?.code || "" };
+    adults: bk.adults, children: bk.children, snorkelDay: bk.snorkDay, addons, stay: bk.stay.trim(), ...who, promo: bk.promoApplied?.code || "" };
   return { type: "ferry", trip: bk.oneway ? "oneway" : "return", stay: bk.stay.trim(), direction: bk.toJetty ? "toJetty" : "toIsland",
     date: bk.start, returnDate: bk.end, time: bk.dep, returnTime: bk.ret, adults: bk.adults, children: bk.children, ...who, promo: bk.promoApplied?.code || "",
-    addons: [...(bk.ferryAddons || new Map())].map(([id, n]) => ({ id, adults: n.adults, children: n.children })).filter(a => a.adults + a.children > 0) };
+    addons };
 }
 
 // Returns { url, reference } on success, { unavailable: true } when payment isn't set up, or { error }
@@ -1142,7 +1260,7 @@ async function sendBookingForm() {
     const oneWayTag = bk.oneway ? (bk.toJetty ? "ONE-WAY Perhentian → Kuala Besut" : "ONE-WAY Kuala Besut → Perhentian") : "";
     const payTag = bk.payRef ? `PAY ONLINE ${bk.payRef}` : "";
     p.append(F.stay, [bk.stay.trim(), payTag, oneWayTag, `${bk.toJetty ? "Boat from island" : "Depart boat"}: ${bk.dep}`, bk.oneway ? "" : `Return boat: ${bk.ret}`,
-      bk.mode === "ground" && snorkelDay() ? `Snorkeling: ${isoDate(snorkelDay())} ${SNORKEL.time}` : ""].filter(Boolean).join(" | "));
+      bk.mode === "ground" && bk.snorkDay ? `Snorkeling: ${planDays()[bk.snorkDay - 1].date} ${SNORKEL.start[bk.id]}` : ""].filter(Boolean).join(" | "));
     p.append("pageHistory", "0,2");
   }
   await fetch(F.action, { method: "POST", mode: "no-cors", body: p });
@@ -1160,10 +1278,9 @@ bkSheet.addEventListener("click", (e) => {
   const fa = e.target.closest("[data-bkfaddon]");
   if (fa) {
     const v = fa.dataset.bkfaddon;
-    fa.checked ? bk.ferryAddons.set(v, { adults: bk.adults, children: bk.children }) : bk.ferryAddons.delete(v);
-    $("bkFAddonVal").textContent = ferryAddonSummary();
-    $("bkFAddonPax").innerHTML = ferryAddonPax();
-    refreshFerryTotals();
+    fa.checked ? bk.ferryAddons.set(v, { adults: bk.adults, children: bk.children, day: 0 }) : bk.ferryAddons.delete(v);
+    refreshPlan();
+    if (bk.mode === "ferry" && $("bkSnork")) { $("bkSnork").hidden = !(planDays().length && bk.ferryAddons.size); $("bkSnork").className = "bk__snork"; }
     return;
   }
   const add = e.target.closest("[data-bkaddon]");
@@ -1177,14 +1294,25 @@ bkSheet.addEventListener("input", (e) => {
     const cur = bk.ferryAddons.get(fm[2]);
     if (cur) {
       const max = fm[1] === "adults" ? bk.adults : bk.children;
-      cur[fm[1]] = Math.min(paxNum(e.target.value), max);
+      cur[fm[1]] = Math.min(paxNum(e.target.value), max); cur.edited = true;
       if (e.target.value !== "" && paxNum(e.target.value) > max) e.target.value = String(max);
       refreshFerryTotals();
     }
     return;
   }
+  const sd = n.match(/^sday-(\w+)$/);
+  if (sd) {
+    const v = Number(e.target.value) || 0;
+    if (sd[1] === "pkg") { bk.snorkDay = v; bk.snorkDayPicked = true; } else if (bk.ferryAddons.get(sd[1])) bk.ferryAddons.get(sd[1]).day = v;
+    refreshPlan();
+    return;
+  }
   if (n === "adults" || n === "children") {
     bk[n] = paxNum(e.target.value);
+    for (const a of (bk.ferryAddons || new Map()).values()) {
+      if (!a.edited) { a.adults = bk.adults; a.children = bk.children; } else { a.adults = Math.min(a.adults, bk.adults); a.children = Math.min(a.children, bk.children); }
+    }
+    if (bk.mode === "ground" && $("bkFAddonPax")) $("bkFAddonPax").innerHTML = ferryAddonPax();
     const price = bkPrice();
     if (price && $("bkSum")) $("bkSum").innerHTML = bkSumHTML(price);
     return;
@@ -1195,7 +1323,7 @@ bkSheet.addEventListener("input", (e) => {
     endEl.min = bk.start;
     if (bk.end && bk.end < bk.start) { bk.end = ""; endEl.value = ""; }
   }
-  if (n === "start" || n === "end") refreshGroundSnorkel();
+  if (bk.mode === "ground" && ["start", "end", "dep", "ret"].includes(n)) refreshPlan();
 });
 bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
 // Enter in the promo box applies the code instead of paying

@@ -905,3 +905,10 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 .bk__snork { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--soft, #f6f6f3); font-size: 13px; line-height: 1.5; color: var(--ink); }
 .bk__snork a, .pinfo__snork a { color: inherit; font-weight: 600; }
 .pinfo__snork { margin: 6px 0 14px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+/* Snorkeling plan (which day each trip is) */
+.bk__planbox { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; }
+.bk__planbox .bk__snork { margin: 0; }
+.bk__plan { margin: 0 0 6px; padding-left: 18px; }
+.bk__plan li { margin: 2px 0; }
+.bk__fixed { margin: 4px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--soft); font-size: 14px; }
+.bk__fapax .bk__f + .bk__f, .bk__fapax .bk__grid + .bk__f, .bk__fapax .bk__grid + .bk__fixed { margin-top: 10px; }
