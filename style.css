@@ -900,3 +900,8 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 .hero__tabs.is-sliding { scroll-snap-type: x proximity; }
 .hero__tabs.is-sliding .htab { scroll-snap-align: center; }
 .hero__tabs.is-sliding::after { display: none; }
+
+/* Ferry + snorkeling: when snorkeling happens + WhatsApp note */
+.bk__snork { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--soft, #f6f6f3); font-size: 13px; line-height: 1.5; color: var(--ink); }
+.bk__snork a, .pinfo__snork a { color: inherit; font-weight: 600; }
+.pinfo__snork { margin: 6px 0 14px; font-size: 13px; line-height: 1.5; color: var(--muted); }

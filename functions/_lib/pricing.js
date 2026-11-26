@@ -20,6 +20,12 @@ export const GROUND = {
   redang: { name: "Ferry + Redang Island Snorkeling Trip", adult: 200, child: 120 },
 };
 
+// Snorkeling starts at 10:00 AM: on the arrival day for 2D1N (only the 8 and 9 AM boats make it),
+// on day 2 for 3D2N and longer. Keep in step with SNORKEL in script.js.
+export const SNORKEL = { time: "10:00 AM", departTimes2D1N: ["8:00 AM", "9:00 AM"] };
+const addDays = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const nightsBetween = (a, b) => Math.round((Date.parse(b + "T00:00:00Z") - Date.parse(a + "T00:00:00Z")) / 864e5);
+
 /* Airport transfer to/from Kuala Besut Jetty.
    shared: RM per person, per way (null = no shared service).
    private: RM per vehicle, per way, one price per size in VEHICLES (published rate + RM20). */
@@ -93,10 +99,13 @@ export function quote(b) {
     const adults = Number(b.adults), children = Number(b.children || 0);
     if (!count(adults, 1, 99) || !count(children, 0, 99)) return { error: "Check the number of guests." };
     if (!isTime(b.time) || !isTime(b.returnTime)) return { error: "Choose your boat times." };
+    const nights = nightsBetween(b.date, b.returnDate);
+    if (nights === 1 && !SNORKEL.departTimes2D1N.includes(b.time)) return { error: "For 2D1N, snorkeling starts at 10:00 AM on your arrival day, so please choose the 8:00 AM or 9:00 AM boat." };
+    const snorkelDate = nights === 1 ? b.date : addDays(b.date, 1);
     return {
       amount: adults * g.adult + children * g.child,
       purpose: `${g.name}: ${JETTY} ⇄ ${ISLAND}`,
-      summary: { type: "ground", package: b.package, trip: "return", from: JETTY, to: ISLAND, date: b.date, time: b.time, returnDate: b.returnDate, returnTime: b.returnTime, adults, children },
+      summary: { type: "ground", package: b.package, trip: "return", from: JETTY, to: ISLAND, date: b.date, time: b.time, returnDate: b.returnDate, returnTime: b.returnTime, adults, children, snorkelDate, snorkelTime: SNORKEL.time },
     };
   }
 

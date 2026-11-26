@@ -68,6 +68,7 @@ export async function onRequestPost({ request, env }) {
   const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
   if (body.type === "ferry") booking.addons = q.summary.addons || [];
   if (body.type !== "airport") booking.stay = clean(body.stay, 80);   // where they stay on the island (optional)
+  if (body.type === "ground") { booking.snorkelDate = q.summary.snorkelDate; booking.snorkelTime = q.summary.snorkelTime; }
   booking.base = q.amount; booking.fee = fee; booking.feePercent = TXN_FEE_PERCENT;
   if (promo) { booking.promo = promo.code; booking.discount = discount; }
   // Airport extras: passengers and vehicle as priced here, plus flight details / city address from the customer

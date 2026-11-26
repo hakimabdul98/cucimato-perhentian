@@ -374,6 +374,31 @@ const GROUND_INCLUDES = [
   "Free gift",
 ];
 
+/* Snorkeling on Ferry + snorkeling packages starts at 10:00 AM.
+   2D1N: on the arrival day, so only the 8:00 AM and 9:00 AM boats reach the island in time.
+   3D2N or longer: on day 2, any depart time. Keep in step with functions/_lib/pricing.js. */
+const SNORKEL = { time: "10:00 AM", departTimes2D1N: ["8:00 AM", "9:00 AM"] };
+const SNORKEL_WA_MSG = "Hi Cucimato! I'd like to arrange my snorkeling trip.\nBooking name: \nTravel dates: ";
+const groundNights = () => bk.start && bk.end ? Math.round((fromIso(bk.end) - fromIso(bk.start)) / 864e5) : 0;
+const groundDepartTimes = () => groundNights() === 1 ? SNORKEL.departTimes2D1N : DEPART_TIMES;
+// Snorkeling day: arrival day for 2D1N, day 2 for longer stays
+const snorkelDay = () => { const n = groundNights(); if (n < 1) return null; const d = fromIso(bk.start); if (n > 1) d.setDate(d.getDate() + 1); return d; };
+function snorkelNote() {
+  const d = snorkelDay(), n = groundNights();
+  const when = !d ? `Snorkeling starts at <b>${SNORKEL.time}</b>: on your arrival day for 2D1N (take the 8:00 AM or 9:00 AM boat), or on day 2 for 3D2N and longer stays.`
+    : n === 1 ? `Snorkeling: <b>${SNORKEL.time}, ${shortDate(d)}</b> (arrival day). Only the 8:00 AM and 9:00 AM boats reach the island in time.`
+    : `Snorkeling: <b>${SNORKEL.time}, ${shortDate(d)}</b> (day 2). Any depart time works.`;
+  return `${when} Kindly <a href="${waLink(SNORKEL_WA_MSG)}" target="_blank" rel="noopener">WhatsApp us</a> for snorkeling arrangement.`;
+}
+// Dates changed in the Ferry + snorkeling sheet: update the depart times and the snorkeling note
+function refreshGroundSnorkel() {
+  if (bk.mode !== "ground") return;
+  if (bk.dep && !groundDepartTimes().includes(bk.dep)) bk.dep = "";
+  const sel = bkSheet.querySelector('select[name="dep"]');
+  if (sel) sel.outerHTML = timeSelect("dep", groundDepartTimes());
+  if ($("bkSnork")) $("bkSnork").innerHTML = snorkelNote();
+}
+
 function renderGround() {
   $("bentoGround").innerHTML = GROUND_TRIPS.map(t => `
     <article class="bcard">
@@ -407,6 +432,7 @@ function openGroundInfo(id) {
         ${t.child ? `<div><small>Child (1–9 years)</small><strong>${rm(t.child)}</strong></div>` : ""}
       </div>
       <p class="pinfo__inc">Guide · Snorkeling · Sea transfer</p>
+      <p class="pinfo__snork">Snorkeling starts at 10:00 AM: on your arrival day for 2D1N (8:00 AM or 9:00 AM boat), or on day 2 for 3D2N and longer stays. Kindly WhatsApp us for snorkeling arrangement.</p>
       <button type="button" class="btn" data-book="ground" data-id="${t.id}">Book Now</button>
     </div>`);
 }
@@ -872,10 +898,11 @@ function renderBooking() {
       </div>
       ${hotel ? "" : `<div>
         <div class="bk__grid">
-          <label class="bk__f">Depart Time${timeSelect("dep", DEPART_TIMES)}</label>
+          <label class="bk__f">Depart Time${timeSelect("dep", bk.mode === "ground" ? groundDepartTimes() : DEPART_TIMES)}</label>
           <label class="bk__f">Return Time${timeSelect("ret", FERRY.returnTimes)}</label>
         </div>
-        <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small></div>`}
+        <small class="bk__hint">Times follow our ferry schedule. If anything changes, we'll WhatsApp you.</small>
+        ${bk.mode === "ground" ? `<p class="bk__snork" id="bkSnork">${snorkelNote()}</p>` : ""}</div>`}
       <div class="bk__grid">${pax("adults", "Adults", "e.g. 2")}${pax("children", "Children (1–9 years)", "0")}</div>`}
       ${hotel ? `<details class="bk__dd"><summary><span class="bk__ddlbl">Add-on activities (optional)</span><strong id="bkAddonVal">${addonSummary()}</strong></summary>
         <div class="bk__ddlist">${ADDONS.map(a => `<label class="bk__ddopt"><input type="checkbox" data-bkaddon="${esc(a.value)}"${bk.addons.has(a.value) ? " checked" : ""}><span>${esc(a.label || a.value)}</span>${a.price ? `<small>+${rm(a.price)}${a.unit ? "/" + a.unit : ""}</small>` : ""}</label>`).join("")}</div></details>`
@@ -1005,6 +1032,7 @@ function bkValidate() {
   if (!bk.start || !bk.end) return "Please choose your dates.";
   if (bk.end < bk.start) return "Your return date is before your departure date.";
   if (bk.mode === "ground" && bk.end === bk.start) return "Packages need at least 1 night on the island (2D1N). Please choose a later return date.";
+  if (bk.mode === "ground" && groundNights() === 1 && bk.dep && !SNORKEL.departTimes2D1N.includes(bk.dep)) return "For 2D1N, snorkeling starts at 10:00 AM on your arrival day, so please choose the 8:00 AM or 9:00 AM boat.";
   if (!inSeason(fromIso(bk.start)) || !inSeason(fromIso(bk.end))) return OFF_SEASON_MSG;
   if (bk.mode !== "hotel" && !bk.dep) return "Please choose your depart time.";
   if (bk.mode !== "hotel" && !bk.oneway && !bk.ret) return "Please choose your return time.";
@@ -1113,7 +1141,8 @@ async function sendBookingForm() {
     p.append(F.ground, GROUND_FORM_NAME[bk.mode === "ferry" ? "ferry" : bk.id]);
     const oneWayTag = bk.oneway ? (bk.toJetty ? "ONE-WAY Perhentian → Kuala Besut" : "ONE-WAY Kuala Besut → Perhentian") : "";
     const payTag = bk.payRef ? `PAY ONLINE ${bk.payRef}` : "";
-    p.append(F.stay, [bk.stay.trim(), payTag, oneWayTag, `${bk.toJetty ? "Boat from island" : "Depart boat"}: ${bk.dep}`, bk.oneway ? "" : `Return boat: ${bk.ret}`].filter(Boolean).join(" | "));
+    p.append(F.stay, [bk.stay.trim(), payTag, oneWayTag, `${bk.toJetty ? "Boat from island" : "Depart boat"}: ${bk.dep}`, bk.oneway ? "" : `Return boat: ${bk.ret}`,
+      bk.mode === "ground" && snorkelDay() ? `Snorkeling: ${isoDate(snorkelDay())} ${SNORKEL.time}` : ""].filter(Boolean).join(" | "));
     p.append("pageHistory", "0,2");
   }
   await fetch(F.action, { method: "POST", mode: "no-cors", body: p });
@@ -1166,6 +1195,7 @@ bkSheet.addEventListener("input", (e) => {
     endEl.min = bk.start;
     if (bk.end && bk.end < bk.start) { bk.end = ""; endEl.value = ""; }
   }
+  if (n === "start" || n === "end") refreshGroundSnorkel();
 });
 bkSheet.addEventListener("submit", (e) => { e.preventDefault(); bkSubmit(); });
 // Enter in the promo box applies the code instead of paying
