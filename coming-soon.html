@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cucimato | Coming soon</title>
+  <meta name="description" content="Cucimato Perhentian Island. Coming soon.">
+  <meta property="og:title" content="Cucimato | Coming soon">
+  <meta property="og:description" content="Cucimato Perhentian Island. Coming soon.">
+  <meta property="og:image" content="https://cucimatoperhentianisland.my/images/photos/hero-map.webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;800&family=Righteous&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
+  <style>
+    /* Holding page while the new site is kept as a surprise (served on "/" by functions/_middleware.js) */
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { min-height: 100svh; display: flex; flex-direction: column; background: #fff; color: #111;
+      font-family: "Plus Jakarta Sans", system-ui, sans-serif; overflow-x: hidden; }
+    main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 48px 16px 24px; text-align: center; }
+    .logo { width: min(240px, 56vw); height: auto; }
+    h1 { margin: 0; font-weight: 800; font-size: clamp(48px, 11vw, 104px); letter-spacing: -0.04em; line-height: 1; }
+    h1 .dot { display: inline-block; animation: blink 1.4s infinite both; }
+    h1 .dot:nth-child(2) { animation-delay: .2s; } h1 .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: .15; } 40% { opacity: 1; } }
+    .wa { display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 10px 0 26px; border-radius: 999px;
+      background: #25d366; color: #fff; font-weight: 600; font-size: 17px; text-decoration: none; }
+    .wa span { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #111; font-size: 18px; }
+    footer { padding: 0 16px 8px; }
+    footer svg { display: block; width: 100%; height: auto; }
+    footer text { font-family: "Righteous", sans-serif; fill: #f6f6f3; }
+    .up { animation: up .8s cubic-bezier(.2,.8,.2,1) both; }
+    .up:nth-child(2) { animation-delay: .12s; } .up:nth-child(3) { animation-delay: .24s; }
+    @keyframes up { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .up, h1 .dot { animation: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <img class="logo up" src="images/brand/cucimato-logo-dark.webp" alt="Cucimato" width="800" height="587">
+    <h1 class="up">Coming soon<span class="dot">.</span><span class="dot">.</span><span class="dot">.</span></h1>
+    <a class="wa up" href="https://wa.me/60192094669" target="_blank" rel="noopener">WhatsApp us <span>↗</span></a>
+  </main>
+  <footer aria-hidden="true">
+    <svg viewBox="0 0 1000 210"><text x="0" y="190" font-size="250" textLength="1000" lengthAdjust="spacingAndGlyphs">cucimato</text></svg>
+  </footer>
+</body>
+</html>
