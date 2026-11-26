@@ -72,7 +72,16 @@
   async function check(tries = 0) {
     if (!id) return failed();
     let d = {};
-    try { d = await (await fetch(`/api/status?id=${encodeURIComponent(id)}`, { cache: "no-store" })).json(); } catch {}
+    try { d = await (await fetch(`/api/status?id=${encodeURIComponent(id)}${qs.get("t") ? "&t=" + encodeURIComponent(qs.get("t")) : ""}`, { cache: "no-store" })).json(); } catch {}
+    if (d.status === "completed" && d.free) {
+      return show({
+        kind: "ok", title: "Booking confirmed",
+        text: "Your booking is free with your promo code. Your confirmation and e-ticket are on their way to your email.",
+        rows: [["Booking ref", d.reference], ["Paid", "MYR 0.00"]],
+        buttons: `<a class="btn btn--wa" href="${wa(`Hi Cucimato! I just booked on your website. Booking ref: ${d.reference}`)}" target="_blank" rel="noopener">Chat with us on WhatsApp</a>
+                  <a class="btn btn--line" href="./">Back to website</a>`,
+      });
+    }
     if (d.status === "completed") {
       return show({
         kind: "ok", title: "Payment received",

@@ -1027,7 +1027,7 @@ function renderBooking() {
       </div>` : ""}
       ${price ? `<div class="bk__sum" id="bkSum">${bkSumHTML(price)}</div>` : ""}
       ${bk.error ? `<p class="bk__err" role="alert">${bk.error}</p>` : ""}
-      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? `Pay now · ${rm(payTotal(price.total))}` : "Confirm booking"}</button>
+      <button type="submit" class="btn bk__go" ${bk.sending ? "disabled" : ""}>${bk.sending ? (payMode() ? "Opening secure payment…" : "Sending…") : hotel ? "Check availability" : payMode() && price?.total != null ? (payTotal(price.total) === 0 ? "Confirm free booking" : `Pay now · ${rm(payTotal(price.total))}`) : "Confirm booking"}</button>
       <p class="bk__note">${hotel ? "No payment yet. We'll WhatsApp you once the room is confirmed." : payMode() ? `${PAY.test ? "<b>Test mode:</b> no real money is taken. " : ""}Secure payment by HitPay: FPX online banking, DuitNow QR, e-wallet or card. A ${PAY.feePercent}% transaction fee applies to every online payment. Your confirmation and e-ticket are emailed after payment. By paying you agree to our <a href="terms.html" target="_blank" rel="noopener">booking terms</a>.` : "Your invoice will be sent to your email and WhatsApp within 24 hours. A 50% deposit secures the booking."}</p>
     </form>`;
 }
@@ -1060,7 +1060,7 @@ function ferryAddonPax() {
 const refreshFerryTotals = () => {
   const price = bkPrice();
   if ($("bkSum")) $("bkSum").innerHTML = bkSumHTML(price);
-  const go = bkSheet.querySelector(".bk__go"); if (go && price.total != null) go.textContent = `Pay now · ${rm(payTotal(price.total))}`;
+  const go = bkSheet.querySelector(".bk__go"); if (go && price.total != null) go.textContent = payTotal(price.total) === 0 ? "Confirm free booking" : `Pay now · ${rm(payTotal(price.total))}`;
 };
 
 // Add-on dropdown label: "Select activities", or the chosen names

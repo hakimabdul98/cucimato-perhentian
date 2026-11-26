@@ -3,7 +3,7 @@
    The amount is calculated on the server (functions/_lib/pricing.js). */
 import { quote, txnFee, TXN_FEE_PERCENT } from "../_lib/pricing.js";
 import { findPromo, promoDiscount } from "../_lib/promo.js";
-import { API_BASE, hitpayHeaders, json, payMode, tellBookingApp } from "../_lib/hitpay.js";
+import { API_BASE, hitpayHeaders, hmacHex, json, payMode, tellBookingApp } from "../_lib/hitpay.js";
 
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
 
@@ -41,10 +41,37 @@ export async function onRequestPost({ request, env }) {
     discount = promoDiscount(promo, q.amount);
   }
   const net = Math.round((q.amount - discount) * 100) / 100;
-  if (net < 1) return json({ error: "This promo code can't be used for this booking." }, 400);
-  const fee = txnFee(net), total = Math.round((net + fee) * 100) / 100;
+  // 100% promo: free booking, no HitPay. Anything between RM0 and RM1 can't be paid online.
+  const free = net === 0 && Boolean(promo);
+  if (!free && net < 1) return json({ error: "This promo code can't be used for this booking." }, 400);
+  const fee = free ? 0 : txnFee(net), total = Math.round((net + fee) * 100) / 100;
 
   const origin = new URL(request.url).origin;
+  const bookingFor = () => {
+    const pick = ["type", "trip", "direction", "airport", "service", "package", "date", "returnDate", "time", "returnTime", "adults", "children"];
+    const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
+    if (body.type !== "airport") { booking.addons = q.summary.addons || []; booking.schedule = q.summary.schedule || []; }
+    if (body.type !== "airport") booking.stay = clean(body.stay, 80);
+    if (body.type === "ground") { booking.snorkelDate = q.summary.snorkelDate; booking.snorkelTime = q.summary.snorkelTime; }
+    booking.base = q.amount; booking.fee = fee; booking.feePercent = TXN_FEE_PERCENT;
+    if (promo) { booking.promo = promo.code; booking.discount = discount; }
+    if (body.type === "airport") {
+      booking.pax = q.summary.pax; booking.vehicle = q.summary.vehicle;
+      for (const k of ["arrAirline", "arrFlight", "depAirline", "depFlight"]) booking[k] = clean(body[k], 40);
+      booking.address = clean(body.address, 160);
+    }
+    return { ...booking, name, email, phone };
+  };
+
+  if (free) {
+    // The booking app only confirms it after /api/status checks this token (signed with a server-only secret)
+    if (!env.HITPAY_WEBHOOK_SALT) return json({ error: "We couldn't confirm this booking. Please WhatsApp us." }, 503);
+    const paymentId = `FREE-${reference}`;
+    const token = await hmacHex(env.HITPAY_WEBHOOK_SALT, `free|${paymentId}`);
+    const app = await tellBookingApp({ stage: "created", paymentId, reference, amount: 0, token, booking: bookingFor() });
+    console.log("free booking", reference, promo.code, "booking app", app);
+    return json({ url: `${origin}/payment?reference=${encodeURIComponent(paymentId)}&t=${token}`, id: paymentId, reference, amount: 0 });
+  }
   const form = new URLSearchParams({
     amount: total.toFixed(2),
     currency: "MYR",
@@ -64,20 +91,7 @@ export async function onRequestPost({ request, env }) {
   }
 
   // Hand the trip details to the booking app now; it confirms them once HitPay says "paid".
-  const pick = ["type", "trip", "direction", "airport", "service", "package", "date", "returnDate", "time", "returnTime", "adults", "children"];
-  const booking = Object.fromEntries(pick.map(k => [k, body[k] ?? ""]));
-  if (body.type !== "airport") { booking.addons = q.summary.addons || []; booking.schedule = q.summary.schedule || []; }
-  if (body.type !== "airport") booking.stay = clean(body.stay, 80);   // where they stay on the island (optional)
-  if (body.type === "ground") { booking.snorkelDate = q.summary.snorkelDate; booking.snorkelTime = q.summary.snorkelTime; }
-  booking.base = q.amount; booking.fee = fee; booking.feePercent = TXN_FEE_PERCENT;
-  if (promo) { booking.promo = promo.code; booking.discount = discount; }
-  // Airport extras: passengers and vehicle as priced here, plus flight details / city address from the customer
-  if (body.type === "airport") {
-    booking.pax = q.summary.pax; booking.vehicle = q.summary.vehicle;
-    for (const k of ["arrAirline", "arrFlight", "depAirline", "depFlight"]) booking[k] = clean(body[k], 40);
-    booking.address = clean(body.address, 160);
-  }
-  const app = await tellBookingApp({ stage: "created", paymentId: data.id, reference, amount: total, booking: { ...booking, name, email, phone } });
+  const app = await tellBookingApp({ stage: "created", paymentId: data.id, reference, amount: total, booking: bookingFor() });
   console.log("payment request", reference, data.id, total, "booking app", app);
   return json({ url: data.url, id: data.id, reference, amount: total });
 }
