@@ -1,7 +1,9 @@
 /* Promo codes live in the Google Sheet "Cucimato Promo Codes 2027" (tab PROMO_CODES, view-only link).
    Its file ID is the Pages variable PROMO_SHEET_ID. Columns:
-     Code | Type (Percent or RM) | Value | Start | End (yyyy-mm-dd) | Applies (All, Ferry, Airport)
+     Code | Type (Percent or RM) | Value | Start | End (yyyy-mm-dd) | Applies (All, Ferry, Ground, Airport)
      | MaxUses (empty = no limit) | Used (counted by the booking app) | Active (YES/NO) | Notes
+     | MinSpend (optional: RM, trip price before the discount and fee; empty = none)
+   Applies: Ferry = ferry tickets and ferry + snorkeling packages; Ground = ferry + snorkeling packages only.
    The booking app adds 1 to Used each time a paid booking uses the code. */
 
 function parseCsv(text) {
@@ -26,7 +28,7 @@ function parseCsv(text) {
 
 const todayMY = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
 
-// Returns { code, kind: "percent" | "rm", value, label } or { error }
+// type: "ferry" | "ground" | "airport". Returns { code, kind: "percent" | "rm", value, label, minSpend } or { error }
 export async function findPromo(env, code, type) {
   const id = String(env.PROMO_SHEET_ID || "").trim();
   if (!id) return { error: "Promo codes aren't available right now." };
@@ -53,15 +55,19 @@ export async function findPromo(env, code, type) {
   if (start && today < start) return { error: `This promo code starts on ${start}.` };
   if (end && today > end) return { error: "This promo code has ended." };
   const applies = (g("applies") || "All").toLowerCase();
-  if (applies !== "all" && applies !== type) return { error: `This promo code is for ${applies === "ferry" ? "ferry tickets" : "airport transfers"} only.` };
+  const fits = applies === "all" || applies === type || (applies === "ferry" && type === "ground");
+  const forWhat = { ferry: "ferry tickets", ground: "ferry + snorkeling packages", airport: "airport transfers" }[applies] || "other bookings";
+  if (!fits) return { error: `This promo code is for ${forWhat} only.` };
   const max = Number(g("maxuses") || 0), used = Number(g("used") || 0);
   if (max > 0 && used >= max) return { error: "This promo code has been fully used." };
   const kind = /^p/i.test(g("type")) ? "percent" : "rm";
   const value = Number(g("value").replace(/[^\d.]/g, ""));
   if (!(value > 0) || (kind === "percent" && value > 100)) return { error: "This promo code isn't valid." };
-  return { code: want, kind, value, label: kind === "percent" ? `${value}% off` : `RM${value} off` };
+  const minSpend = Number(g("minspend").replace(/[^\d.]/g, "")) || 0;
+  return { code: want, kind, value, minSpend, label: (kind === "percent" ? `${value}% off` : `RM${value} off`) + (minSpend ? `, min. spend RM${minSpend}` : "") };
 }
 
-// Discount in RM on the trip price (never more than the price)
+// Discount in RM on the trip price (never more than the price; nothing below the minimum spend)
 export const promoDiscount = (p, base) =>
-  !p || p.error ? 0 : Math.min(base, Math.round((p.kind === "percent" ? base * p.value / 100 : p.value) * 100) / 100);
+  !p || p.error || base < (p.minSpend || 0) ? 0 : Math.min(base, Math.round((p.kind === "percent" ? base * p.value / 100 : p.value) * 100) / 100);
+export const belowMinSpend = (p, base) => Boolean(p && !p.error && p.minSpend && base < p.minSpend);

@@ -912,3 +912,13 @@ button.froute__icon:not(:disabled):active { transform: rotate(180deg); }
 .bk__plan li { margin: 2px 0; }
 .bk__fixed { margin: 4px 0 0; padding: 12px 14px; border-radius: 12px; background: var(--soft); font-size: 14px; }
 .bk__fapax .bk__f + .bk__f, .bk__fapax .bk__grid + .bk__f, .bk__fapax .bk__grid + .bk__fixed { margin-top: 10px; }
+
+/* Things to explore (MH style): on a computer the buttons appear only when the cursor is on the card
+   (or a button inside it has keyboard focus). Phones and tablets have no hover, so the buttons stay visible. */
+@media (hover: hover) and (pointer: fine) {
+  .xcard .bcard__actions { max-height: 0; opacity: 0; transform: translateY(10px); overflow: hidden; margin-top: -10px;
+    transition: max-height .35s ease, opacity .25s ease, transform .35s ease, margin-top .35s ease; }
+  .xcard:hover .bcard__actions, .xcard:focus-within .bcard__actions { max-height: 60px; opacity: 1; transform: none; margin-top: 0; }
+  .xcard::after { transition: background .35s ease; }
+  .xcard:hover::after, .xcard:focus-within::after { background: linear-gradient(180deg, rgba(0,0,0,0) 25%, rgba(0,0,0,.78) 100%); }
+}

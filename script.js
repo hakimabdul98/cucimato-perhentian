@@ -975,7 +975,9 @@ function bkSumHTML(price) {
   if (!bk.adults && bk.mode !== "airport") return `<div class="muted"><span>Enter the number of guests to see the price</span></div>`;
   return `${price.lines.map(l => `<div><span>${l[0]}</span><span>${rm(l[1])}</span></div>`).join("")}
     ${price.childNote ? `<div class="muted"><span>Children</span><span>In your invoice</span></div>` : ""}
-    ${price.total != null && payMode() && bk.promoApplied ? `<div class="bk__off"><span>Promo ${esc(bk.promoApplied.code)} (${esc(bk.promoApplied.label)})</span><span>−${rm(promoOff(price.total))}</span></div>` : ""}
+    ${price.total != null && payMode() && bk.promoApplied ? (promoShort(price.total)
+      ? `<div class="muted"><span>Promo ${esc(bk.promoApplied.code)}: min. spend ${rm(bk.promoApplied.minSpend)}</span><span>Not yet</span></div>`
+      : `<div class="bk__off"><span>Promo ${esc(bk.promoApplied.code)} (${esc(bk.promoApplied.label)})</span><span>−${rm(promoOff(price.total))}</span></div>`) : ""}
     ${price.total != null && payMode() ? `<div><span>Transaction fee (${PAY.feePercent}%)</span><span>${rm(txnFee(Math.round((price.total - promoOff(price.total)) * 100) / 100))}</span></div>` : ""}
     ${price.total != null ? `<div class="t"><span>${payMode() ? "Total to pay" : "Estimated total"}</span><span>${rm(payMode() ? payTotal(price.total) : price.total)}</span></div>` : `<div class="t"><span>Price</span><span>On request</span></div>`}`;
 }
@@ -1163,6 +1165,8 @@ function bkValidate() {
   const local = bkPhone().replace(/^\+\d+\s/, "");
   if (local.length < 7 || local.length > 12) return "Please enter your WhatsApp number with the right country code.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(bk.email.trim())) return "Please enter a valid email for your invoice.";
+  const total = bkPrice()?.total;
+  if (payMode() && total != null && promoShort(total)) return `The promo code ${esc(bk.promoApplied.code)} needs a minimum spend of ${rm(bk.promoApplied.minSpend)}. Add guests or trips, or remove the code.`;
   return "";
 }
 
@@ -1175,7 +1179,9 @@ const PAY = { enabled: false, test: false, endpoint: "/api/pay", feePercent: 4 }
 // 4% transaction fee on every online payment (any method). Same sum as functions/_lib/pricing.js
 const txnFee = (base) => Math.round(base * PAY.feePercent) / 100;
 // Promo code (checked by /api/promo, applied again on the server), then the fee on the lower price
-const promoOff = (base) => { const p = bk.promoApplied; return !p ? 0 : Math.min(base, Math.round((p.kind === "percent" ? base * p.value / 100 : p.value) * 100) / 100); };
+// No discount below the code's minimum spend (trip price before the fee)
+const promoShort = (base) => Boolean(bk.promoApplied?.minSpend && base < bk.promoApplied.minSpend);
+const promoOff = (base) => { const p = bk.promoApplied; return !p || promoShort(base) ? 0 : Math.min(base, Math.round((p.kind === "percent" ? base * p.value / 100 : p.value) * 100) / 100); };
 const payTotal = (base) => { const net = Math.round((base - promoOff(base)) * 100) / 100; return Math.round((net + txnFee(net)) * 100) / 100; };
 // Ask the server once whether online payment is switched on (off on GitHub Pages or until HitPay is set up)
 fetch(PAY.endpoint, { cache: "no-store" })
@@ -1339,7 +1345,7 @@ async function applyPromo() {
   if (!code) { bk.promoMsg = "Enter a promo code."; renderBooking(); return; }
   Object.assign(bk, { promoBusy: true, promoMsg: "" }); renderBooking();
   try {
-    const res = await fetch(`/api/promo?code=${encodeURIComponent(code)}&type=${bk.mode === "airport" ? "airport" : "ferry"}`, { cache: "no-store" });
+    const res = await fetch(`/api/promo?code=${encodeURIComponent(code)}&type=${bk.mode === "airport" || bk.mode === "ground" ? bk.mode : "ferry"}`, { cache: "no-store" });
     const d = await res.json().catch(() => ({}));
     if (res.ok && d.code) Object.assign(bk, { promoApplied: d, promoCode: d.code, promoMsg: `${d.code} applied: ${d.label}` });
     else Object.assign(bk, { promoApplied: null, promoMsg: d.error || "This promo code isn't valid." });

@@ -2,7 +2,7 @@
    Body (JSON): booking details + { name, email, phone }.
    The amount is calculated on the server (functions/_lib/pricing.js). */
 import { quote, txnFee, TXN_FEE_PERCENT } from "../_lib/pricing.js";
-import { findPromo, promoDiscount } from "../_lib/promo.js";
+import { belowMinSpend, findPromo, promoDiscount } from "../_lib/promo.js";
 import { API_BASE, hitpayHeaders, hmacHex, json, payMode, tellBookingApp } from "../_lib/hitpay.js";
 
 const clean = (s, max) => String(s ?? "").replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, max);
@@ -36,8 +36,9 @@ export async function onRequestPost({ request, env }) {
   // on the price after the discount (same fee for every payment method)
   let promo = null, discount = 0;
   if (String(body.promo || "").trim()) {
-    promo = await findPromo(env, body.promo, body.type === "airport" ? "airport" : "ferry");
+    promo = await findPromo(env, body.promo, ["airport", "ground"].includes(body.type) ? body.type : "ferry");
     if (promo.error) return json({ error: promo.error }, 400);
+    if (belowMinSpend(promo, q.amount)) return json({ error: `The promo code ${promo.code} needs a minimum spend of RM${promo.minSpend}.` }, 400);
     discount = promoDiscount(promo, q.amount);
   }
   const net = Math.round((q.amount - discount) * 100) / 100;
